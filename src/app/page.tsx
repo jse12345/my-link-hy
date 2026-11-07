@@ -216,8 +216,8 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 중앙 메인 컨테이너 (반응형: 모바일 100%, 태블릿 80% 최대 480px, 데스크탑 400px 고정) */}
-      <main className="w-full md:w-[80%] md:max-w-[480px] lg:w-[400px] mx-auto flex flex-col items-center py-8 px-4 flex-1">
+      {/* 중앙 메인 컨테이너 (반응형: 모바일 100%, 태블릿 80% 최대 480px, 데스크탑 400px 고정, 최소 320px 방어) */}
+      <main className="w-full min-w-[320px] md:w-[80%] md:max-w-[480px] lg:w-[400px] mx-auto flex flex-col items-center py-8 px-4 flex-1">
         {/* 상단 컨트롤 바 */}
         <header className="w-full flex items-center justify-between mb-4 px-1">
           {/* 테마 컬러 팔레트 */}
@@ -269,11 +269,11 @@ export default function ProfilePage() {
         {/* 프로필 카드 (Neobrutalism 스타일 가이드 100% 일치) */}
         <section
           style={{ backgroundColor: themeColor }}
-          className="w-full border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-4 md:p-6 flex flex-col items-center text-center relative mb-5 transition-colors duration-300"
+          className="w-full min-w-[280px] border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-4 md:p-6 flex flex-col items-center text-center relative mb-5 transition-colors duration-300"
         >
           {/* 키치 스티커 배지 (왼쪽 위 45도 기울어진 스티커) */}
           <div className="absolute -top-3.5 -left-3.5 rotate-[-12deg] z-10">
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#F43F5E] text-white border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] text-[11px] font-black tracking-tight">
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#F43F5E] text-white border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] text-[11px] font-black tracking-tight whitespace-nowrap">
               <Zap className="w-3 h-3 fill-white stroke-[2.5]" />
               COOL!
             </span>
@@ -281,16 +281,16 @@ export default function ProfilePage() {
 
           {/* 상단 상태 뱃지 */}
           <div className="w-full flex justify-end items-center mb-4">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border-[2.5px] border-black rounded-[6px] shadow-[2.5px_2.5px_0px_#000] text-[11px] font-black tracking-tight">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border-[2.5px] border-black rounded-[6px] shadow-[2.5px_2.5px_0px_#000] text-[11px] font-black tracking-tight whitespace-nowrap">
               <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] border-[1.5px] border-black animate-pulse" />
               ONLINE
             </span>
           </div>
 
           {/* 프로필 이미지 (가이드: 원형 120x120, border 3px solid black, shadow 4px 4px 0 black) */}
-          <div className="relative mb-4">
-            <div className="w-[120px] h-[120px] rounded-full bg-[#E0E7FF] border-[3px] border-black shadow-[4px_4px_0px_#000] flex items-center justify-center overflow-hidden">
-              <span className="text-4xl font-black select-none tracking-tight text-black">
+          <div className="relative mb-4 shrink-0">
+            <div className="w-[120px] h-[120px] rounded-full bg-[#E0E7FF] border-[3px] border-black shadow-[4px_4px_0px_#000] flex items-center justify-center overflow-hidden shrink-0">
+              <span className="text-4xl font-black select-none tracking-tight text-black whitespace-nowrap">
                 시은
               </span>
             </div>
@@ -299,13 +299,13 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* 이름 */}
-          <h1 className="text-3xl font-black tracking-tight text-black mb-1">
+          {/* 이름 (세로로 안 쪼개지도록 whitespace-nowrap 방어) */}
+          <h1 className="text-3xl font-black tracking-tight text-black mb-1 whitespace-nowrap">
             {name}
           </h1>
 
           {/* 직함 뱃지 */}
-          <div className="inline-block px-3 py-1 bg-black text-[#FEF08A] font-black text-xs rounded-[6px] tracking-wide mb-3 shadow-[2px_2px_0px_#fff]">
+          <div className="inline-block px-3 py-1 bg-black text-[#FEF08A] font-black text-xs rounded-[6px] tracking-wide mb-3 shadow-[2px_2px_0px_#fff] whitespace-nowrap">
             VIBE CODER ✨
           </div>
 
@@ -315,7 +315,21 @@ export default function ProfilePage() {
           </p>
 
           {/* 소셜 링크 아이콘 바 */}
-          <div className="flex items-center justify-center gap-2.5 mt-5">
+          <div className="flex items-center justify-center gap-2.5 mt-5 flex-wrap">
+            {socialLinks.map((social) => (
+              <a
+                key={social.id}
+                href={social.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={social.label}
+                className={`p-2.5 rounded-[10px] ${social.bg} border-[2.5px] border-black shadow-[3px_3px_0px_#000] hover:shadow-[4px_4px_0px_#000] hover:-translate-y-0.5 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000] transition-all shrink-0`}
+              >
+                {social.icon}
+              </a>
+            ))}
+          </div>
+        </section>
             {socialLinks.map((social) => (
               <a
                 key={social.id}
