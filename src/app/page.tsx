@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import {
-  Globe,
   ExternalLink,
   BookOpen,
   Mail,
   Share2,
   Check,
-  GraduationCap,
   Sparkles,
+  Layers,
+  ArrowUpRight,
+  Code2,
 } from "lucide-react";
 import {
   GithubIcon,
@@ -18,18 +19,21 @@ import {
   XTwitterIcon,
 } from "@/components/icons";
 
-interface SimpleLink {
+interface LinkItem {
   id: string;
   title: string;
+  subtitle: string;
   url: string;
-  icon?: React.ReactNode;
+  icon: React.ReactNode;
+  tag?: string;
+  bgColor: string;
 }
 
 export default function ProfilePage() {
   const [copied, setCopied] = useState(false);
 
   const name = "정시은";
-  const bio = "안녕하세요! 바이브 코딩으로 가치 있는 서비스를 만드는 정시은입니다 ✨";
+  const bio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
 
   const socialLinks = [
     {
@@ -37,57 +41,80 @@ export default function ProfilePage() {
       label: "GitHub",
       url: "https://github.com/jse12345",
       icon: <GithubIcon className="w-5 h-5" />,
+      bg: "bg-[#A7F3D0]", // 민트
     },
     {
       id: "instagram",
       label: "Instagram",
       url: "https://instagram.com",
       icon: <InstagramIcon className="w-5 h-5" />,
+      bg: "bg-[#FBCFE8]", // 핑크
     },
     {
       id: "twitter",
       label: "X (Twitter)",
       url: "https://x.com",
       icon: <XTwitterIcon className="w-5 h-5" />,
+      bg: "bg-[#BAE6FD]", // 스카이블루
     },
     {
       id: "linkedin",
       label: "LinkedIn",
       url: "https://linkedin.com",
       icon: <LinkedinIcon className="w-5 h-5" />,
+      bg: "bg-[#DDD6FE]", // 퍼플
     },
     {
       id: "email",
       label: "Email",
       url: "mailto:used776655@gmail.com",
       icon: <Mail className="w-5 h-5" />,
+      bg: "bg-[#FED7AA]", // 오렌지
     },
   ];
 
-  const links: SimpleLink[] = [
+  const links: LinkItem[] = [
     {
       id: "github-link",
       title: "GitHub 저장소 방문하기",
-      url: "https://github.com",
-      icon: <GithubIcon className="w-5 h-5" />,
+      subtitle: "my-link-hy 소스 코드 & 개발 기록 보러가기",
+      url: "https://github.com/jse12345/my-link-hy",
+      icon: <GithubIcon className="w-5 h-5 text-black" />,
+      tag: "HOT",
+      bgColor: "bg-white",
+    },
+    {
+      id: "portfolio",
+      title: "바이브 코딩 포트폴리오",
+      subtitle: "AI와 함께 만든 창의적인 프로젝트 모음",
+      url: "https://github.com/jse12345",
+      icon: <Sparkles className="w-5 h-5 text-black" />,
+      tag: "NEW",
+      bgColor: "bg-[#FDE047]", // 옐로우
     },
     {
       id: "blog",
       title: "공부 기록 & 블로그",
-      url: "https://blog.example.com",
-      icon: <BookOpen className="w-5 h-5" />,
+      subtitle: "Next.js, TypeScript, 디자인 시스템 학습 일지",
+      url: "https://github.com/jse12345",
+      icon: <BookOpen className="w-5 h-5 text-black" />,
+      bgColor: "bg-[#BAE6FD]", // 하늘색
     },
     {
-      id: "portfolio",
-      title: "바이브 코딩 프로젝트 포트폴리오",
-      url: "https://portfolio.example.com",
-      icon: <Sparkles className="w-5 h-5" />,
+      id: "stack",
+      title: "사용 기술 스택 & 환경",
+      subtitle: "Next.js 16 · React 19 · Tailwind CSS · TypeScript",
+      url: "https://nextjs.org",
+      icon: <Layers className="w-5 h-5 text-black" />,
+      bgColor: "bg-[#A7F3D0]", // 민트
     },
     {
       id: "contact",
       title: "이메일로 연락하기",
-      url: "mailto:gildong@example.com",
-      icon: <Mail className="w-5 h-5" />,
+      subtitle: "used776655@gmail.com 으로 문의주세요",
+      url: "mailto:used776655@gmail.com",
+      icon: <Mail className="w-5 h-5 text-black" />,
+      bgColor: "bg-[#FBCFE8]", // 베이비핑크
     },
   ];
 
@@ -103,97 +130,127 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 text-neutral-800 dark:text-neutral-100 flex flex-col justify-between py-12 px-4 selection:bg-neutral-900 selection:text-white dark:selection:bg-white dark:selection:text-neutral-900">
-      {/* 본문 콘텐츠 중앙 컨테이너 */}
-      <div className="w-full max-w-md mx-auto flex flex-col items-center text-center">
-        {/* 상단 공유 버튼 */}
-        <div className="w-full flex justify-end mb-6">
-          <button
-            onClick={handleCopyLink}
-            aria-label="링크 공유하기"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:border-neutral-300 dark:hover:border-neutral-700 shadow-2xs transition-all"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">복사됨</span>
-              </>
-            ) : (
-              <>
-                <Share2 className="w-3.5 h-3.5" />
-                <span>공유</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* 프로필 이미지 / 아바타 */}
-        <div className="relative mb-5">
-          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-tr from-neutral-200 via-neutral-100 to-neutral-200 dark:from-neutral-800 dark:via-neutral-850 dark:to-neutral-800 border-2 border-white dark:border-neutral-900 shadow-md flex items-center justify-center">
-            <span className="text-3xl sm:text-4xl font-bold text-neutral-800 dark:text-neutral-100 select-none">
-              시
+    <div className="min-h-screen bg-[#FEF08A] text-black flex flex-col justify-between py-12 px-4 font-sans selection:bg-black selection:text-[#FEF08A]">
+      {/* 중앙 메인 컨테이너 */}
+      <div className="w-full max-w-md mx-auto flex flex-col items-center">
+        {/* 프로필 카드 (Neobrutalism 스타일 가이드 적용) */}
+        <div className="w-full bg-[#FEF08A] border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-6 flex flex-col items-center text-center relative mb-6">
+          {/* 상단 뱃지 & 공유 버튼 */}
+          <div className="w-full flex justify-between items-center mb-6">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] text-xs font-black tracking-tight">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] border border-black animate-pulse" />
+              ONLINE
             </span>
-          </div>
-          <div className="absolute -bottom-1 -right-1 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 p-1.5 rounded-full shadow-sm">
-            <GraduationCap className="w-3.5 h-3.5" />
-          </div>
-        </div>
 
-        {/* 이름 */}
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
-          {name}
-        </h1>
-
-        {/* 소개글 (중앙 정렬) */}
-        <p className="mt-3 text-sm sm:text-base text-neutral-600 dark:text-neutral-300 leading-relaxed max-w-xs sm:max-w-sm break-keep">
-          {bio}
-        </p>
-
-        {/* 소셜 링크 아이콘 목록 (중앙 정렬) */}
-        <div className="flex items-center justify-center gap-3 mt-6 mb-8">
-          {socialLinks.map((social) => (
-            <a
-              key={social.id}
-              href={social.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={social.label}
-              className="p-2.5 rounded-full bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:border-neutral-300 dark:hover:border-neutral-700 shadow-2xs hover:scale-105 active:scale-95 transition-all"
+            <button
+              onClick={handleCopyLink}
+              aria-label="링크 공유하기"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-neutral-100 border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] hover:shadow-[4px_4px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] text-xs font-black transition-all cursor-pointer"
             >
-              {social.icon}
-            </a>
-          ))}
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-black stroke-[3]" />
+                  <span>복사됨!</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-3.5 h-3.5 text-black stroke-[2.5]" />
+                  <span>공유</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* 프로필 이미지 (가이드: 원형 120x120, border 3px solid black, shadow 4px 4px 0 black) */}
+          <div className="relative mb-5">
+            <div className="w-[120px] h-[120px] rounded-full bg-[#E0E7FF] border-[3px] border-black shadow-[4px_4px_0px_#000] flex items-center justify-center overflow-hidden">
+              <span className="text-4xl font-black select-none tracking-tight text-black">
+                시은
+              </span>
+            </div>
+            <div className="absolute bottom-0 right-0 bg-[#F43F5E] text-white p-1.5 rounded-full border-[2.5px] border-black shadow-[2px_2px_0px_#000]">
+              <Sparkles className="w-4 h-4 fill-white text-white stroke-[2.5]" />
+            </div>
+          </div>
+
+          {/* 이름 */}
+          <h1 className="text-3xl font-black tracking-tight text-black mb-1">
+            {name}
+          </h1>
+
+          {/* 역할 태그 뱃지 */}
+          <div className="inline-block px-3 py-0.5 bg-black text-[#FEF08A] font-extrabold text-xs rounded-[6px] tracking-wide mb-3">
+            VIBE CODER
+          </div>
+
+          {/* 소개글 */}
+          <p className="text-sm font-semibold text-neutral-800 leading-relaxed max-w-xs break-keep">
+            {bio}
+          </p>
+
+          {/* 소셜 링크 아이콘 바 */}
+          <div className="flex items-center justify-center gap-3 mt-6">
+            {socialLinks.map((social) => (
+              <a
+                key={social.id}
+                href={social.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={social.label}
+                className={`p-2.5 rounded-[10px] ${social.bg} border-[2.5px] border-black shadow-[3px_3px_0px_#000] hover:shadow-[4px_4px_0px_#000] hover:-translate-y-0.5 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000] transition-all`}
+              >
+                {social.icon}
+              </a>
+            ))}
+          </div>
         </div>
 
-        {/* 심플 링크 버튼 리스트 (중앙 정렬 & 풀 위드 카드) */}
-        <div className="w-full space-y-3">
+        {/* 링크 카드 리스트 (Neobrutalism 스타일 적용) */}
+        <div className="w-full space-y-3.5">
           {links.map((link) => (
             <a
               key={link.id}
               href={link.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group flex items-center justify-between w-full p-4 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 hover:border-neutral-400 dark:hover:border-neutral-600 hover:shadow-sm active:scale-[0.99] transition-all"
+              className={`group flex items-center justify-between w-full p-4 rounded-[12px] ${link.bgColor} border-[3px] border-black shadow-[4px_4px_0px_#000] hover:shadow-[6px_6px_0px_#000] hover:-translate-y-1 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_#000] transition-all`}
             >
-              <div className="w-5 text-neutral-400 dark:text-neutral-500 group-hover:text-neutral-800 dark:group-hover:text-neutral-200 transition-colors">
-                {link.icon || <Globe className="w-5 h-5" />}
+              {/* 좌측 아이콘 박스 */}
+              <div className="flex items-center justify-center w-11 h-11 rounded-[8px] bg-white border-[2.5px] border-black shadow-[2px_2px_0px_#000] shrink-0">
+                {link.icon}
               </div>
 
-              <span className="font-medium text-sm sm:text-base text-neutral-800 dark:text-neutral-200 group-hover:text-neutral-950 dark:group-hover:text-white transition-colors flex-1 text-center px-2">
-                {link.title}
-              </span>
+              {/* 중앙 타이틀 & 서브타이틀 */}
+              <div className="flex-1 text-left px-3.5 overflow-hidden">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-black text-sm sm:text-base text-black truncate">
+                    {link.title}
+                  </h2>
+                  {link.tag && (
+                    <span className="px-1.5 py-0.5 rounded-[4px] text-[10px] font-black bg-black text-[#FEF08A] uppercase tracking-wider">
+                      {link.tag}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs font-semibold text-neutral-600 truncate mt-0.5">
+                  {link.subtitle}
+                </p>
+              </div>
 
-              <div className="w-5 flex justify-end text-neutral-300 dark:text-neutral-600 group-hover:text-neutral-600 dark:group-hover:text-neutral-400 transition-colors">
-                <ExternalLink className="w-4 h-4" />
+              {/* 우측 화살표 아이콘 */}
+              <div className="w-8 h-8 rounded-[6px] bg-black text-white flex items-center justify-center shrink-0 group-hover:bg-neutral-800 transition-colors">
+                <ArrowUpRight className="w-4 h-4 stroke-[3]" />
               </div>
             </a>
           ))}
         </div>
       </div>
 
-      {/* 심플 푸터 */}
-      <footer className="text-center pt-10 text-xs text-neutral-400 dark:text-neutral-600">
-        <p>© 2026 {name} • My-Link</p>
+      {/* 푸터 */}
+      <footer className="text-center pt-10 text-xs font-bold text-neutral-800">
+        <p className="inline-block px-3 py-1 bg-white border-[2px] border-black rounded-[6px] shadow-[2px_2px_0px_#000]">
+          © 2026 {name} • My-Link Neobrutalism
+        </p>
       </footer>
     </div>
   );
