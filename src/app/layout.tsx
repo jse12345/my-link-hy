@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "홍길동 | 프로필",
-  description: "안녕하세요 바이브 코딩을 배우고 있는 대학생입니다.",
+  title: "정시은 | My Link",
+  description: "정시은 님의 Neobrutalism 스타일 감각적인 개인 프로필 링크 모음",
   openGraph: {
-    title: "홍길동 | 프로필",
-    description: "안녕하세요 바이브 코딩을 배우고 있는 대학생입니다.",
+    title: "정시은 | My Link",
+    description: "안녕하세요! 바이브 코딩으로 가치 있는 서비스를 만드는 정시은입니다 ✨",
     type: "profile",
     locale: "ko_KR",
   },
