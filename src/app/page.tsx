@@ -131,10 +131,10 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#FEF08A] text-black flex flex-col justify-between py-12 px-4 font-sans selection:bg-black selection:text-[#FEF08A]">
-      {/* 중앙 메인 컨테이너 */}
-      <div className="w-full max-w-md mx-auto flex flex-col items-center">
-        {/* 프로필 카드 (Neobrutalism 스타일 가이드 적용) */}
-        <div className="w-full bg-[#FEF08A] border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-6 flex flex-col items-center text-center relative mb-6">
+      {/* 중앙 메인 컨테이너 ([반응형 가이드] 모바일: 100% | 태블릿: 80%, 최대 480px | 데스크탑: 400px 고정) */}
+      <div className="w-full md:w-[80%] md:max-w-[480px] lg:w-[400px] mx-auto flex flex-col items-center">
+        {/* 프로필 카드 (모바일 패딩: 16px, 태블릿/데스크탑 패딩: 24px) */}
+        <div className="w-full bg-[#FEF08A] border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-4 md:p-6 flex flex-col items-center text-center relative mb-6">
           {/* 상단 뱃지 & 공유 버튼 */}
           <div className="w-full flex justify-between items-center mb-6">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] text-xs font-black tracking-tight">
