@@ -28,14 +28,14 @@ interface SimpleLink {
 export default function ProfilePage() {
   const [copied, setCopied] = useState(false);
 
-  const name = "홍길동";
-  const bio = "안녕하세요 바이브 코딩을 배우고 있는 대학생입니다";
+  const name = "정시은";
+  const bio = "안녕하세요! 바이브 코딩으로 가치 있는 서비스를 만드는 정시은입니다 ✨";
 
   const socialLinks = [
     {
       id: "github",
       label: "GitHub",
-      url: "https://github.com",
+      url: "https://github.com/jse12345",
       icon: <GithubIcon className="w-5 h-5" />,
     },
     {
@@ -59,7 +59,7 @@ export default function ProfilePage() {
     {
       id: "email",
       label: "Email",
-      url: "mailto:gildong@example.com",
+      url: "mailto:used776655@gmail.com",
       icon: <Mail className="w-5 h-5" />,
     },
   ];
@@ -131,7 +131,7 @@ export default function ProfilePage() {
         <div className="relative mb-5">
           <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-tr from-neutral-200 via-neutral-100 to-neutral-200 dark:from-neutral-800 dark:via-neutral-850 dark:to-neutral-800 border-2 border-white dark:border-neutral-900 shadow-md flex items-center justify-center">
             <span className="text-3xl sm:text-4xl font-bold text-neutral-800 dark:text-neutral-100 select-none">
-              홍
+              시
             </span>
           </div>
           <div className="absolute -bottom-1 -right-1 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 p-1.5 rounded-full shadow-sm">
