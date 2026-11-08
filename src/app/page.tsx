@@ -16,8 +16,11 @@ import {
   Palette,
   Heart,
   Zap,
-  Star,
   ExternalLink,
+  FolderGit2,
+  FileText,
+  Eye,
+  Flame,
 } from "lucide-react";
 import {
   GithubIcon,
@@ -36,33 +39,61 @@ const THEME_PALETTES = [
   { id: "lavender", name: "드림 라벤더", bg: "bg-[#DDD6FE]", code: "#DDD6FE" },
 ];
 
+const CATEGORY_TABS = [
+  { id: "all", label: "전체 보기", icon: "⭐" },
+  { id: "project", label: "대표 프로젝트", icon: "🚀" },
+  { id: "blog", label: "기술 블로그", icon: "📝" },
+  { id: "social", label: "소셜 & 연락처", icon: "📫" },
+] as const;
+
+type CategoryTabId = (typeof CATEGORY_TABS)[number]["id"];
+
 export default function ProfilePage() {
   const [copied, setCopied] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [themeColor, setThemeColor] = useState("#FEF08A");
   const [links, setLinks] = useState<LinkItem[]>(DUMMY_LINKS);
+  const [activeCategory, setActiveCategory] = useState<CategoryTabId>("all");
 
   // 새 링크 입력 폼 상태
   const [newTitle, setNewTitle] = useState("");
   const [newSubtitle, setNewSubtitle] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [newTag, setNewTag] = useState("");
+  const [newCategory, setNewCategory] = useState<"project" | "blog" | "social" | "study" | "contact">("project");
   const [newBgColor, setNewBgColor] = useState("bg-white");
 
   const name = "정시은";
   const bio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
 
-  // 로컬스토리지 동기화
+  // 로컬스토리지 및 public/data/links.json 동기화
   useEffect(() => {
     const saved = localStorage.getItem("my-link-custom-links");
     if (saved) {
       try {
         setLinks(JSON.parse(saved));
+        return;
       } catch {
-        // 기본값 유지
+        // parsing error fallback
       }
     }
+
+    // 초기 실행 시 public/data/links.json 불러오기 시도
+    fetch("/data/links.json")
+      .then((res) => {
+        if (res.ok) return res.json();
+        return null;
+      })
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setLinks(data);
+          localStorage.setItem("my-link-custom-links", JSON.stringify(data));
+        }
+      })
+      .catch(() => {
+        // DUMMY_LINKS 유지
+      });
   }, []);
 
   const saveLinks = (updatedLinks: LinkItem[]) => {
@@ -70,22 +101,35 @@ export default function ProfilePage() {
     localStorage.setItem("my-link-custom-links", JSON.stringify(updatedLinks));
   };
 
+  const handleLinkClick = (id: string) => {
+    const updated = links.map((l) =>
+      l.id === id ? { ...l, clickCount: (l.clickCount ?? 0) + 1 } : l
+    );
+    saveLinks(updated);
+  };
+
   const handleAddLink = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newUrl.trim()) return;
 
     let formattedUrl = newUrl.trim();
-    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://") && !formattedUrl.startsWith("mailto:")) {
+    if (
+      !formattedUrl.startsWith("http://") &&
+      !formattedUrl.startsWith("https://") &&
+      !formattedUrl.startsWith("mailto:")
+    ) {
       formattedUrl = "https://" + formattedUrl;
     }
 
     const newLinkItem: LinkItem = {
-      id: Date.now().toString(),
+      id: "custom-" + Date.now().toString(),
       title: newTitle.trim(),
       subtitle: newSubtitle.trim() || "링크 바로가기",
       url: formattedUrl,
-      tag: newTag.trim() || undefined,
+      category: newCategory,
+      tag: newTag.trim() || "CUSTOM",
       bgColor: newBgColor,
+      clickCount: 0,
       isCustom: true,
     };
 
@@ -114,6 +158,42 @@ export default function ProfilePage() {
     }
   };
 
+  // 카테고리 필터링 로직
+  const filteredLinks = links.filter((link) => {
+    if (activeCategory === "all") return true;
+    if (activeCategory === "project") return link.category === "project";
+    if (activeCategory === "blog") return link.category === "blog" || link.category === "study";
+    if (activeCategory === "social") return link.category === "social" || link.category === "contact";
+    return true;
+  });
+
+  // 링크별 맞춤형 Neobrutalism 아이콘
+  const getLinkIcon = (link: LinkItem) => {
+    if (link.tag === "GITHUB" || link.url.includes("github.com")) {
+      return <FolderGit2 className="w-5 h-5 text-black stroke-[2.5]" />;
+    }
+    if (link.tag === "HOT" || link.category === "project") {
+      return <Sparkles className="w-5 h-5 text-amber-500 stroke-[2.5]" />;
+    }
+    if (link.tag === "BLOG" || link.category === "blog") {
+      return <BookOpen className="w-5 h-5 text-sky-600 stroke-[2.5]" />;
+    }
+    if (link.tag === "RESUME") {
+      return <FileText className="w-5 h-5 text-purple-600 stroke-[2.5]" />;
+    }
+    if (link.tag === "TECH" || link.category === "study") {
+      return <Layers className="w-5 h-5 text-emerald-600 stroke-[2.5]" />;
+    }
+    if (link.category === "contact" || link.url.startsWith("mailto:")) {
+      return <Mail className="w-5 h-5 text-orange-600 stroke-[2.5]" />;
+    }
+    if (link.category === "social") {
+      return <Zap className="w-5 h-5 text-rose-500 stroke-[2.5]" />;
+    }
+    return <ExternalLink className="w-5 h-5 text-black stroke-[2.5]" />;
+  };
+
+  // 소셜 채널 링크
   const socialLinks = [
     {
       id: "github",
@@ -157,7 +237,7 @@ export default function ProfilePage() {
       style={{ backgroundColor: themeColor }}
       className="min-h-screen min-w-[360px] text-black flex flex-col justify-between selection:bg-black selection:text-[#FEF08A] transition-colors duration-300 font-sans relative overflow-x-auto"
     >
-      {/* 상단 롤링 마퀴 띠 배너 (Neobrutalism 시그니처 롤링 티커) */}
+      {/* 1. 상단 롤링 마퀴 띠 배너 (PRD 6번 와이어프레임 시그니처 롤링 티커) */}
       <div className="w-full bg-black text-[#FEF08A] py-2 border-b-[3px] border-black overflow-hidden whitespace-nowrap font-black text-xs tracking-wider select-none shadow-[0px_4px_0px_#000]">
         <div className="inline-block animate-[marquee_20s_linear_infinite]">
           ⚡ JEONG SI-EUN • MY-LINK 2026 • NEXT.JS 16 & TYPESCRIPT • VIBE CODING • OPEN TO CONNECT • ⚡ JEONG SI-EUN • MY-LINK 2026 • NEXT.JS 16 & TYPESCRIPT • VIBE CODING • OPEN TO CONNECT •&nbsp;
@@ -167,9 +247,10 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 중앙 메인 컨테이너 (표준 규격: 모바일 360px 고정/100%, 태블릿 80% 최대 480px, 데스크탑/노트북 400px 고정) */}
+      {/* 2. 중앙 메인 컨테이너 (반응형: 모바일 360px~767px 100%, 태블릿 768px~1023px 80% 최대 480px, 데스크탑 1024px~ 400px 고정) */}
       <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[480px] lg:w-[400px] mx-auto flex flex-col items-center py-8 px-4 flex-1">
-        {/* 상단 컨트롤 바 */}
+        
+        {/* 상단 컨트롤 바 (테마 팔레트 / QR / 공유) */}
         <header className="w-full flex items-center justify-between mb-4 px-1">
           {/* 테마 컬러 팔레트 */}
           <div className="flex items-center gap-1.5 p-1.5 bg-white border-[3px] border-black rounded-[10px] shadow-[3px_3px_0px_#000]">
@@ -217,12 +298,12 @@ export default function ProfilePage() {
           </div>
         </header>
 
-        {/* 프로필 카드 (Neobrutalism 스타일 가이드 100% 일치) */}
+        {/* 프로필 카드 (Neobrutalism 스타일 가이드 100% 준수) */}
         <section
           style={{ backgroundColor: themeColor }}
           className="w-full min-w-[280px] border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-4 md:p-6 flex flex-col items-center text-center relative mb-5 transition-colors duration-300"
         >
-          {/* 키치 스티커 배지 (왼쪽 위 45도 기울어진 스티커) */}
+          {/* 키치 스티커 배지 (좌측 상단 -12도 회전) */}
           <div className="absolute -top-3.5 -left-3.5 rotate-[-12deg] z-10">
             <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#F43F5E] text-white border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] text-[11px] font-black tracking-tight whitespace-nowrap">
               <Zap className="w-3 h-3 fill-white stroke-[2.5]" />
@@ -238,7 +319,7 @@ export default function ProfilePage() {
             </span>
           </div>
 
-          {/* 프로필 이미지 (가이드: 원형 120x120, border 3px solid black, shadow 4px 4px 0 black) */}
+          {/* 프로필 원형 아바타 (120px x 120px, 3px 테두리, 4px 하드 그림자) */}
           <div className="relative mb-4 shrink-0">
             <div className="w-[120px] h-[120px] rounded-full bg-[#E0E7FF] border-[3px] border-black shadow-[4px_4px_0px_#000] flex items-center justify-center overflow-hidden shrink-0">
               <span className="text-4xl font-black select-none tracking-tight text-black whitespace-nowrap">
@@ -250,7 +331,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* 이름 (세로로 안 쪼개지도록 whitespace-nowrap 방어) */}
+          {/* 이름 (화면 좁혀져도 세로 쪼개짐 방지) */}
           <h1 className="text-3xl font-black tracking-tight text-black mb-1 whitespace-nowrap">
             {name}
           </h1>
@@ -260,7 +341,7 @@ export default function ProfilePage() {
             VIBE CODER ✨
           </div>
 
-          {/* 소개글 */}
+          {/* 한 줄 소개글 */}
           <p className="text-sm font-bold text-neutral-900 leading-relaxed max-w-xs break-keep mt-1">
             {bio}
           </p>
@@ -293,55 +374,122 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        {/* 링크 카드 리스트 (Neobrutalism 스타일) */}
-        <div className="w-full space-y-3.5">
-          {links.map((link) => (
-            <a
-              key={link.id}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`group flex items-center justify-between w-full p-4 rounded-[12px] ${link.bgColor} border-[3px] border-black shadow-[4px_4px_0px_#000] hover:shadow-[6px_6px_0px_#000] hover:-translate-y-1 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_#000] transition-all`}
-            >
-              {/* 좌측 아이콘 박스 */}
-              <div className="flex items-center justify-center w-11 h-11 rounded-[8px] bg-white border-[2.5px] border-black shadow-[2px_2px_0px_#000] shrink-0">
-                <BookOpen className="w-5 h-5 text-black stroke-[2.5]" />
-              </div>
+        {/* 3. 카테고리 분류 탭 바 (PRD F-2 명세) */}
+        <div className="w-full mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1.5 bg-neutral-900 border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000]">
+            {CATEGORY_TABS.map((tab) => {
+              const isActive = activeCategory === tab.id;
+              const count = links.filter((l) => {
+                if (tab.id === "all") return true;
+                if (tab.id === "project") return l.category === "project";
+                if (tab.id === "blog") return l.category === "blog" || l.category === "study";
+                if (tab.id === "social") return l.category === "social" || l.category === "contact";
+                return true;
+              }).length;
 
-              {/* 중앙 타이틀 & 서브타이틀 */}
-              <div className="flex-1 text-left px-3.5 overflow-hidden">
-                <div className="flex items-center gap-2">
-                  <h2 className="font-black text-sm sm:text-base text-black truncate">
-                    {link.title}
-                  </h2>
-                  {link.tag && (
-                    <span className="px-2 py-0.5 rounded-[4px] text-[10px] font-black bg-black text-white uppercase tracking-wider">
-                      {link.tag}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs font-bold text-neutral-600 truncate mt-0.5">
-                  {link.subtitle}
-                </p>
-              </div>
-
-              {/* 우측 액션 버튼 */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                {link.isCustom && (
-                  <button
-                    onClick={(e) => handleDeleteLink(link.id, e)}
-                    aria-label="링크 삭제"
-                    className="w-8 h-8 rounded-[6px] bg-rose-100 hover:bg-rose-200 border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer"
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveCategory(tab.id)}
+                  className={`py-2 px-2 rounded-[8px] text-xs font-black flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-[#FEF08A] text-black border-[2px] border-black shadow-[2px_2px_0px_#fff]"
+                      : "bg-transparent text-white hover:bg-neutral-800"
+                  }`}
+                >
+                  <span className="text-xs">{tab.icon}</span>
+                  <span className="whitespace-nowrap truncate">{tab.label}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full border border-black font-extrabold ${
+                      isActive ? "bg-black text-[#FEF08A]" : "bg-neutral-700 text-neutral-200"
+                    }`}
                   >
-                    <Trash2 className="w-4 h-4 text-rose-600 stroke-[2.5]" />
-                  </button>
-                )}
-                <div className="w-8 h-8 rounded-[6px] bg-black text-white flex items-center justify-center group-hover:bg-neutral-800 transition-colors">
-                  <ArrowUpRight className="w-4 h-4 stroke-[3]" />
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4. 링크 카드 리스트 (PRD.md 및 ASCII Wireframe 반영) */}
+        <div className="w-full space-y-3.5">
+          {filteredLinks.length === 0 ? (
+            <div className="w-full p-8 text-center bg-white border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000]">
+              <p className="font-black text-sm text-neutral-600">
+                선택한 카테고리에 등록된 링크가 없습니다.
+              </p>
+            </div>
+          ) : (
+            filteredLinks.map((link) => (
+              <a
+                key={link.id}
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => handleLinkClick(link.id)}
+                className={`group flex items-center justify-between w-full p-3.5 sm:p-4 rounded-[12px] ${link.bgColor} border-[3px] border-black shadow-[4px_4px_0px_#000] hover:shadow-[6px_6px_0px_#000] hover:-translate-y-1 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[2px_2px_0px_#000] transition-all`}
+              >
+                {/* 좌측 아이콘 박스 */}
+                <div className="flex items-center justify-center w-11 h-11 rounded-[8px] bg-white border-[2.5px] border-black shadow-[2px_2px_0px_#000] shrink-0">
+                  {getLinkIcon(link)}
                 </div>
-              </div>
-            </a>
-          ))}
+
+                {/* 중앙 콘텐츠: 타이틀, 뱃지, 설명, 방문 카운터 */}
+                <div className="flex-1 text-left px-3 overflow-hidden">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h2 className="font-black text-sm sm:text-base text-black truncate max-w-[190px]">
+                      {link.title}
+                    </h2>
+                    {link.tag && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-wider border border-black shadow-[1px_1px_0px_#000] ${
+                          link.tag === "HOT"
+                            ? "bg-[#F43F5E] text-white"
+                            : link.tag === "GITHUB"
+                            ? "bg-black text-[#FEF08A]"
+                            : link.tag === "NEW"
+                            ? "bg-[#22C55E] text-white"
+                            : "bg-black text-white"
+                        }`}
+                      >
+                        {link.tag === "HOT" && <Flame className="w-2.5 h-2.5 inline mr-0.5 fill-white" />}
+                        {link.tag}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <p className="text-xs font-bold text-neutral-700 truncate mt-0.5">
+                    {link.subtitle}
+                  </p>
+
+                  {/* PRD F-4: 실시간 링크 방문 통계 카운터 뱃지 */}
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-neutral-800 bg-white/90 px-1.5 py-0.5 rounded-[4px] border border-black/40">
+                      <Eye className="w-2.5 h-2.5 stroke-[2.5]" />
+                      {(link.clickCount ?? 0).toLocaleString()}회 방문
+                    </span>
+                  </div>
+                </div>
+
+                {/* 우측 액션: 커스텀 삭제 버튼 & 바로가기 화살표 */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {link.isCustom && (
+                    <button
+                      onClick={(e) => handleDeleteLink(link.id, e)}
+                      aria-label="링크 삭제"
+                      className="w-8 h-8 rounded-[6px] bg-rose-100 hover:bg-rose-200 border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-600 stroke-[2.5]" />
+                    </button>
+                  )}
+                  <div className="w-8 h-8 rounded-[6px] bg-black text-white flex items-center justify-center group-hover:bg-neutral-800 transition-colors">
+                    <ArrowUpRight className="w-4 h-4 stroke-[3]" />
+                  </div>
+                </div>
+              </a>
+            ))
+          )}
         </div>
       </main>
 
@@ -372,6 +520,19 @@ export default function ProfilePage() {
                   onChange={(e) => setNewTitle(e.target.value)}
                   className="w-full px-3 py-2 border-[2.5px] border-black rounded-[8px] font-bold text-sm focus:outline-none focus:ring-2 focus:ring-black"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black mb-1">카테고리</label>
+                <select
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value as any)}
+                  className="w-full px-3 py-2 border-[2.5px] border-black rounded-[8px] font-bold text-sm bg-white focus:outline-none focus:ring-2 focus:ring-black"
+                >
+                  <option value="project">🚀 대표 프로젝트</option>
+                  <option value="blog">📝 기술 블로그 & 스터디</option>
+                  <option value="social">📫 소셜 & 연락처</option>
+                </select>
               </div>
 
               <div>
@@ -487,7 +648,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* 심플 푸터 */}
+      {/* 5. 심플 푸터 */}
       <footer className="text-center py-6 text-xs font-black text-neutral-800 border-t-[3px] border-black bg-white/70">
         <p className="inline-flex items-center gap-1.5">
           <span>Made with</span>
