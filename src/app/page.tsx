@@ -344,15 +344,6 @@ export default function ProfilePage() {
                   <GoogleIcon className="w-5 h-5 bg-white rounded-full p-0.5" />
                   <span>Google로 시작하기</span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => loginWithTestUser("정시은")}
-                  className="w-full py-2.5 px-3 bg-[#FEF08A] hover:bg-[#fde047] text-black border-[2px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] font-black text-xs flex items-center justify-center gap-1.5 active:translate-x-[1px] active:translate-y-[1px] cursor-pointer transition-all"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-black" />
-                  <span>체험용 테스트 계정('정시은')으로 바로 시작</span>
-                </button>
               </div>
             </div>
 
