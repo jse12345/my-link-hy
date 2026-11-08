@@ -56,32 +56,35 @@ export default function ProfilePage() {
       const unsubscribe = onSnapshot(
         collection(db, "users", "anonymous", "links"),
         (snapshot) => {
-          if (!snapshot.empty) {
-            const firestoreLinks: LinkItem[] = snapshot.docs.map((d) => {
-              const data = d.data();
-              return {
-                id: d.id,
-                title: data.title || "",
-                subtitle: data.subtitle || "새로 추가된 링크",
-                url: data.url || "",
-                category: data.category || "project",
-                tag: data.tag || "NEW",
-                bgColor: data.bgColor || "bg-white",
-                clickCount: data.clickCount || 0,
-                isCustom: true,
-              };
-            });
+          const firestoreLinks: (LinkItem & { _time?: number })[] = snapshot.docs.map((d) => {
+            const data = d.data();
+            const time = data.createdAt?.toMillis?.() ?? (typeof data.createdAt === "number" ? data.createdAt : Date.now());
+            return {
+              id: d.id,
+              title: data.title || "",
+              subtitle: data.subtitle || "새로 추가된 링크",
+              url: data.url || "",
+              category: data.category || "project",
+              tag: data.tag || "NEW",
+              bgColor: data.bgColor || "bg-white",
+              clickCount: data.clickCount || 0,
+              isCustom: true,
+              _time: time,
+            };
+          });
 
-            // 기본 더미 데이터와 병합 (중복 URL 방지)
-            const combined = [
-              ...firestoreLinks,
-              ...DUMMY_LINKS.filter(
-                (dummy) => !firestoreLinks.some((fl) => fl.url === dummy.url)
-              ),
-            ];
-            setLinks(combined);
-            localStorage.setItem("my-link-custom-links", JSON.stringify(combined));
-          }
+          // 최신순 (createdAt desc) 정렬
+          firestoreLinks.sort((a, b) => (b._time ?? 0) - (a._time ?? 0));
+
+          // 기본 더미 데이터와 병합 (중복 URL 방지)
+          const combined = [
+            ...firestoreLinks,
+            ...DUMMY_LINKS.filter(
+              (dummy) => !firestoreLinks.some((fl) => fl.url === dummy.url)
+            ),
+          ];
+          setLinks(combined);
+          localStorage.setItem("my-link-custom-links", JSON.stringify(combined));
         },
         (err) => {
           console.warn("Firestore 실시간 동기화 대기:", err.message);
