@@ -8,6 +8,7 @@ export interface LinkItem {
   bgColor: string;
   clickCount?: number;
   featured?: boolean;
+  isCustom?: boolean;
 }
 
 export const DUMMY_LINKS: LinkItem[] = [
