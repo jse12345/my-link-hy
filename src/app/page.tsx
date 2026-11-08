@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Heart, Settings, Trash2, AlertTriangle, X, Pencil, Check } from "lucide-react";
+import { Plus, Heart, Settings, Trash2, AlertTriangle, X, Pencil, Check, LogOut } from "lucide-react";
 import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
+import { db, auth, googleProvider } from "@/lib/firebase";
+import { GoogleIcon } from "@/components/icons";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
 import { Button } from "@/components/ui/button";
@@ -40,13 +42,48 @@ export default function ProfilePage() {
   const [editTitle, setEditTitle] = useState("");
   const [editUrl, setEditUrl] = useState("");
 
+  // 11주차: 구글 소셜 로그인 상태
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // onAuthStateChanged 실시간 인증 상태 감지
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err: any) {
+      if (err.code === "auth/popup-closed-by-user") return;
+      if (err.code === "auth/operation-not-allowed") {
+        alert("Firebase 콘솔에서 Google 로그인을 활성화해주세요!\n(Authentication -> Sign-in method -> Google 추가)");
+        return;
+      }
+      alert("로그인 중 오류가 발생했습니다: " + err.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (err: any) {
+      console.error("로그아웃 오류:", err);
+    }
+  };
+
   const name = "정시은";
   const bio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
 
-  // 로컬스토리지 및 Firestore 실시간 동기화
+  // 로컬스토리지 및 Firestore 실시간 동기화 (경로: users/{user.uid}/links)
   useEffect(() => {
+    const currentUid = currentUser?.uid || "anonymous";
+    const cacheKey = `my-link-custom-links-${currentUid}`;
+
     // 1. 로컬스토리지 캐시 우선 로드
-    const saved = localStorage.getItem("my-link-custom-links");
+    const saved = localStorage.getItem(cacheKey);
     if (saved) {
       try {
         setLinks(JSON.parse(saved));
@@ -55,10 +92,10 @@ export default function ProfilePage() {
       }
     }
 
-    // 2. 실시간 Firestore 클라우드 DB 연동 (경로: users/anonymous/links)
+    // 2. 실시간 Firestore 클라우드 DB 연동 (경로: users/{user.uid}/links)
     try {
       const unsubscribe = onSnapshot(
-        collection(db, "users", "anonymous", "links"),
+        collection(db, "users", currentUid, "links"),
         (snapshot) => {
           const firestoreLinks: (LinkItem & { _time?: number })[] = snapshot.docs.map((d) => {
             const data = d.data();
@@ -88,7 +125,7 @@ export default function ProfilePage() {
             ),
           ];
           setLinks(combined);
-          localStorage.setItem("my-link-custom-links", JSON.stringify(combined));
+          localStorage.setItem(cacheKey, JSON.stringify(combined));
         },
         (err) => {
           console.warn("Firestore 실시간 동기화 대기:", err.message);
@@ -98,11 +135,13 @@ export default function ProfilePage() {
     } catch (err) {
       console.warn("Firestore 연결 실패:", err);
     }
-  }, []);
+  }, [currentUser]);
 
   const saveLinks = (updatedLinks: LinkItem[]) => {
+    const currentUid = currentUser?.uid || "anonymous";
+    const cacheKey = `my-link-custom-links-${currentUid}`;
     setLinks(updatedLinks);
-    localStorage.setItem("my-link-custom-links", JSON.stringify(updatedLinks));
+    localStorage.setItem(cacheKey, JSON.stringify(updatedLinks));
   };
 
   const handleLinkClick = (id: string) => {
@@ -113,9 +152,14 @@ export default function ProfilePage() {
   };
 
   const handleAddLink = (newLinkItem: LinkItem) => {
+    if (!currentUser) {
+      alert("링크를 추가하려면 먼저 Google 로그인이 필요합니다!");
+      return;
+    }
     saveLinks([newLinkItem, ...links]);
+    const targetUid = currentUser.uid;
     try {
-      addDoc(collection(db, "users", "anonymous", "links"), {
+      addDoc(collection(db, "users", targetUid, "links"), {
         title: newLinkItem.title,
         url: newLinkItem.url,
         createdAt: serverTimestamp(),
@@ -135,6 +179,10 @@ export default function ProfilePage() {
   const handleDeleteLink = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!currentUser) {
+      alert("링크를 삭제하려면 먼저 Google 로그인이 필요합니다!");
+      return;
+    }
     const target = links.find((l) => l.id === id);
     if (target) {
       setDeleteTarget(target);
@@ -143,8 +191,14 @@ export default function ProfilePage() {
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
+    if (!currentUser) {
+      alert("로그인이 필요합니다. 먼저 Google로 로그인해주세요!");
+      setDeleteTarget(null);
+      return;
+    }
+    const targetUid = currentUser.uid;
     try {
-      await deleteDoc(doc(db, "users", "anonymous", "links", deleteTarget.id));
+      await deleteDoc(doc(db, "users", targetUid, "links", deleteTarget.id));
     } catch (err) {
       console.warn("Firestore deleteDoc 오류:", err);
     }
@@ -153,6 +207,10 @@ export default function ProfilePage() {
   };
 
   const handleStartEdit = (link: LinkItem) => {
+    if (!currentUser) {
+      alert("링크를 수정하려면 먼저 Google 로그인이 필요합니다!");
+      return;
+    }
     setEditingId(link.id);
     setEditTitle(link.title);
     setEditUrl(link.url);
@@ -165,6 +223,11 @@ export default function ProfilePage() {
   };
 
   const handleSaveEdit = async (id: string) => {
+    if (!currentUser) {
+      alert("수정하려면 먼저 Google 로그인이 필요합니다!");
+      return;
+    }
+
     const trimmedTitle = editTitle.trim();
     const trimmedUrl = editUrl.trim();
 
@@ -195,8 +258,9 @@ export default function ProfilePage() {
       return;
     }
 
+    const targetUid = currentUser.uid;
     try {
-      await updateDoc(doc(db, "users", "anonymous", "links", id), {
+      await updateDoc(doc(db, "users", targetUid, "links", id), {
         title: trimmedTitle,
         url: formattedUrl,
         updatedAt: serverTimestamp(),
@@ -246,7 +310,46 @@ export default function ProfilePage() {
       <MarqueeTicker />
 
       {/* 2. 중앙 메인 컨테이너 (모바일 360px 보장, 태블릿 80%/480px, 데스크탑 400px) */}
-      <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[480px] lg:w-[400px] mx-auto flex flex-col items-center py-8 px-4 flex-1">
+      <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[480px] lg:w-[400px] mx-auto flex flex-col items-center py-6 px-4 flex-1">
+        {/* 11주차: 헤더 구글 로그인 / 사용자 표시 & 로그아웃 바 */}
+        <div className="w-full mb-3 px-1">
+          {currentUser ? (
+            <div className="w-full flex items-center justify-between p-2 bg-white border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000]">
+              <div className="flex items-center gap-2 truncate">
+                {currentUser.photoURL && (
+                  <img
+                    src={currentUser.photoURL}
+                    alt="프로필"
+                    className="w-5 h-5 rounded-full border border-black shrink-0"
+                  />
+                )}
+                <span className="text-xs font-black text-black truncate">
+                  {currentUser.displayName || "사용자"}님
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-2.5 py-1 bg-neutral-100 hover:bg-neutral-200 border-[1.5px] border-black rounded-[6px] text-xs font-black flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                <LogOut className="w-3 h-3 stroke-[2.5]" />
+                <span>로그아웃</span>
+              </button>
+            </div>
+          ) : (
+            <div className="w-full flex justify-end">
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-neutral-100 border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] text-xs font-black cursor-pointer transition-all"
+              >
+                <GoogleIcon className="w-3.5 h-3.5" />
+                <span>Google로 로그인</span>
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* 상단 컨트롤 바 */}
         <ControlBar
           palettes={THEME_PALETTES}

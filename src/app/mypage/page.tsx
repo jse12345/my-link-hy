@@ -22,10 +22,13 @@ import {
   Check,
   X,
   AlertTriangle,
+  LogOut,
 } from "lucide-react";
 
 import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
+import { db, auth, googleProvider } from "@/lib/firebase";
+import { GoogleIcon } from "@/components/icons";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
 import { Button } from "@/components/ui/button";
@@ -47,10 +50,53 @@ export default function MyPage() {
   // 실습 2 (Delete): 삭제 확인 모달 대상 링크
   const [deleteTarget, setDeleteTarget] = useState<LinkItem | null>(null);
 
-  // 로컬스토리지 및 Firestore 실시간 동기화
+  // 11주차: 구글 소셜 로그인 상태
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  // 5. onAuthStateChanged 로 인증 상태 실시간 감지
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 구글 팝업 로그인
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      setSuccessMessage("Google 계정으로 로그인되었습니다!");
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err: any) {
+      if (err.code === "auth/popup-closed-by-user") return;
+      if (err.code === "auth/operation-not-allowed") {
+        alert("Firebase 콘솔에서 Google 로그인을 활성화해주세요!\n(Authentication -> Sign-in method -> Google 추가)");
+        return;
+      }
+      alert("로그인 중 오류가 발생했습니다: " + err.message);
+    }
+  };
+
+  // 로그아웃
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setSuccessMessage("로그아웃되었습니다.");
+      setTimeout(() => setSuccessMessage(""), 3000);
+    } catch (err: any) {
+      console.error("로그아웃 오류:", err);
+    }
+  };
+
+  // 로컬스토리지 및 Firestore 실시간 동기화 (경로: users/{user.uid}/links)
+  useEffect(() => {
+    const currentUid = currentUser?.uid || "anonymous";
+    const cacheKey = `my-link-custom-links-${currentUid}`;
+
     // 1. 로컬스토리지 우선 로드
-    const saved = localStorage.getItem("my-link-custom-links");
+    const saved = localStorage.getItem(cacheKey);
     if (saved) {
       try {
         setLinks(JSON.parse(saved));
@@ -59,10 +105,10 @@ export default function MyPage() {
       }
     }
 
-    // 2. 실시간 Firestore 클라우드 DB 연동 (경로: users/anonymous/links)
+    // 2. 실시간 Firestore 클라우드 DB 연동 (경로: users/{user.uid}/links)
     try {
       const unsubscribe = onSnapshot(
-        collection(db, "users", "anonymous", "links"),
+        collection(db, "users", currentUid, "links"),
         (snapshot) => {
           setIsCloudConnected(true);
           const firestoreLinks: (LinkItem & { _time?: number })[] = snapshot.docs.map((d) => {
@@ -93,7 +139,7 @@ export default function MyPage() {
             ),
           ];
           setLinks(combined);
-          localStorage.setItem("my-link-custom-links", JSON.stringify(combined));
+          localStorage.setItem(cacheKey, JSON.stringify(combined));
         },
         (err) => {
           console.warn("Firestore 연결 대기 중:", err.message);
@@ -103,12 +149,14 @@ export default function MyPage() {
     } catch (err) {
       console.warn("Firestore 초기화:", err);
     }
-  }, []);
+  }, [currentUser]);
 
   // 로컬스토리지 저장 함수
   const saveLinks = (updated: LinkItem[]) => {
+    const currentUid = currentUser?.uid || "anonymous";
+    const cacheKey = `my-link-custom-links-${currentUid}`;
     setLinks(updated);
-    localStorage.setItem("my-link-custom-links", JSON.stringify(updated));
+    localStorage.setItem(cacheKey, JSON.stringify(updated));
   };
 
   // 실습 2 & 3: 추가 버튼 클릭 시 검증 및 동작
@@ -116,6 +164,12 @@ export default function MyPage() {
     e.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
+
+    // 권한 체크: 수정/추가는 로그인 필수!
+    if (!currentUser) {
+      alert("링크를 추가하려면 먼저 Google 로그인이 필요합니다!");
+      return;
+    }
 
     const trimmedTitle = title.trim();
     const trimmedUrl = url.trim();
@@ -168,9 +222,10 @@ export default function MyPage() {
       isCustom: true,
     };
 
-    // Firestore에 저장 시도 (경로: users/anonymous/links)
+    // Firestore에 저장 시도 (경로: users/{user.uid}/links)
+    const targetUid = currentUser.uid;
     try {
-      addDoc(collection(db, "users", "anonymous", "links"), {
+      addDoc(collection(db, "users", targetUid, "links"), {
         title: newLinkItem.title,
         url: newLinkItem.url,
         createdAt: serverTimestamp(),
@@ -205,6 +260,10 @@ export default function MyPage() {
   // 실습 1 (Update): 인라인 편집 핸들러
   // ==========================================
   const handleStartEdit = (link: LinkItem) => {
+    if (!currentUser) {
+      alert("링크를 수정하려면 먼저 Google 로그인이 필요합니다!");
+      return;
+    }
     setEditingId(link.id);
     setEditTitle(link.title);
     setEditUrl(link.url);
@@ -218,6 +277,11 @@ export default function MyPage() {
   };
 
   const handleSaveEdit = async (id: string) => {
+    if (!currentUser) {
+      alert("수정하려면 먼저 Google 로그인이 필요합니다!");
+      return;
+    }
+
     const trimmedTitle = editTitle.trim();
     const trimmedUrl = editUrl.trim();
 
@@ -253,9 +317,10 @@ export default function MyPage() {
       return;
     }
 
-    // 3. Firestore updateDoc 실행 (경로: users/anonymous/links)
+    // 3. Firestore updateDoc 실행 (경로: users/{user.uid}/links)
+    const targetUid = currentUser.uid;
     try {
-      await updateDoc(doc(db, "users", "anonymous", "links", id), {
+      await updateDoc(doc(db, "users", targetUid, "links", id), {
         title: trimmedTitle,
         url: formattedUrl,
         updatedAt: serverTimestamp(),
@@ -281,6 +346,10 @@ export default function MyPage() {
   // 실습 2 (Delete): 삭제 확인 모달 핸들러
   // ==========================================
   const handleOpenDeleteModal = (link: LinkItem) => {
+    if (!currentUser) {
+      alert("링크를 삭제하려면 먼저 Google 로그인이 필요합니다!");
+      return;
+    }
     setDeleteTarget(link);
   };
 
@@ -291,15 +360,32 @@ export default function MyPage() {
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
 
+    if (!currentUser) {
+      alert("로그인이 필요합니다. 먼저 Google로 로그인해주세요!");
+      setDeleteTarget(null);
+      return;
+    }
+
     const targetId = deleteTarget.id;
     const targetTitle = deleteTarget.title;
+    const targetUid = currentUser.uid;
 
-    // 1. Firestore deleteDoc 실행
+    // 1. Firestore deleteDoc 실행 (경로: users/{user.uid}/links)
     try {
-      await deleteDoc(doc(db, "users", "anonymous", "links", targetId));
+      await deleteDoc(doc(db, "users", targetUid, "links", targetId));
     } catch (err) {
       console.warn("Firestore deleteDoc 오류:", err);
     }
+
+    // 2. 로컬 상태 반영
+    const updated = links.filter((item) => item.id !== targetId);
+    saveLinks(updated);
+
+    // 3. 모달 닫기 및 알림
+    setDeleteTarget(null);
+    setSuccessMessage(`"[${targetTitle}]" 링크가 영구 삭제되었습니다.`);
+    setTimeout(() => setSuccessMessage(""), 3000);
+  };
 
     // 2. 로컬 상태 반영
     const updated = links.filter((item) => item.id !== targetId);
@@ -353,7 +439,7 @@ export default function MyPage() {
         
         {/* 상단 헤더 영역 */}
         <header className="w-full mb-6">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-neutral-100 border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000] font-black text-xs transition-all cursor-pointer"
@@ -361,11 +447,40 @@ export default function MyPage() {
               <ArrowLeft className="w-3.5 h-3.5 stroke-[3]" />
               <span>메인 프로필로</span>
             </Link>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#22C55E] text-white border border-black rounded-[6px] text-[10px] font-black tracking-tight">
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                Firestore 실시간 연동됨
-              </span>
+
+            {/* 11주차: 구글 로그인 / 사용자 이름 표시 & 로그아웃 버튼 */}
+            <div className="flex items-center gap-2">
+              {currentUser ? (
+                <div className="flex items-center gap-1.5 bg-white px-2.5 py-1 border-[2.5px] border-black rounded-[8px] shadow-[2px_2px_0px_#000]">
+                  {currentUser.photoURL && (
+                    <img
+                      src={currentUser.photoURL}
+                      alt="프로필"
+                      className="w-5 h-5 rounded-full border border-black"
+                    />
+                  )}
+                  <span className="text-xs font-black text-black">
+                    {currentUser.displayName || "사용자"}님
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="ml-1 px-2 py-0.5 bg-neutral-100 hover:bg-neutral-200 border border-black rounded-[5px] text-[11px] font-black cursor-pointer flex items-center gap-1 text-neutral-700"
+                  >
+                    <LogOut className="w-3 h-3 stroke-[2.5]" />
+                    <span>로그아웃</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-neutral-100 border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] text-xs font-black cursor-pointer transition-all"
+                >
+                  <GoogleIcon className="w-3.5 h-3.5" />
+                  <span>Google로 로그인</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -373,9 +488,18 @@ export default function MyPage() {
             <h1 className="text-2xl font-black tracking-tight mb-1">
               내 링크 관리
             </h1>
-            <p className="text-xs font-bold text-neutral-600">
+            <p className="text-xs font-bold text-neutral-600 mb-2">
               새로운 링크를 추가하고 목록을 관리해보세요!
             </p>
+            <div className="flex items-center justify-between text-[11px] font-bold text-neutral-600 pt-2 border-t border-neutral-200">
+              <span className="truncate max-w-[220px]">
+                저장 경로: <code className="bg-neutral-100 px-1.5 py-0.5 rounded border border-black/20 text-black font-mono">users/{currentUser ? currentUser.uid.slice(0, 8) + "..." : "anonymous"}/links</code>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#22C55E] text-white border border-black rounded-[6px] text-[10px] font-black tracking-tight shrink-0">
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                Firestore 연동됨
+              </span>
+            </div>
           </div>
         </header>
 
