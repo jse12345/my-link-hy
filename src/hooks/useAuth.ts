@@ -39,10 +39,11 @@ export function useAuth() {
 
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser: User | null) => {
       if (firebaseUser) {
-        // Firebase 실제 로그인 유저
+        // Firebase 실제 로그인 유저 (displayName 없으면 email 또는 아이디 표시)
+        const nameFallback = firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split("@")[0] : "사용자");
         setUser({
           uid: firebaseUser.uid,
-          displayName: firebaseUser.displayName || "사용자",
+          displayName: nameFallback,
           email: firebaseUser.email,
           photoURL: firebaseUser.photoURL,
           isMock: false,
@@ -66,9 +67,10 @@ export function useAuth() {
     try {
       setLoading(true);
       const result = await signInWithPopup(auth, googleProvider);
+      const nameFallback = result.user.displayName || (result.user.email ? result.user.email.split("@")[0] : "사용자");
       setUser({
         uid: result.user.uid,
-        displayName: result.user.displayName || "사용자",
+        displayName: nameFallback,
         email: result.user.email,
         photoURL: result.user.photoURL,
         isMock: false,
