@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { X, Wifi, Github, Smartphone, Info } from "lucide-react";
+import { X, Wifi, Smartphone, Info } from "lucide-react";
+import { GithubIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
 interface QrModalProps {
@@ -56,7 +57,7 @@ export function QrModal({ isOpen, onClose }: QrModalProps) {
                 : "text-neutral-600 hover:text-black"
             }`}
           >
-            <Github className="w-3.5 h-3.5" />
+            <GithubIcon className="w-3.5 h-3.5" />
             <span>GitHub</span>
           </button>
         </div>
