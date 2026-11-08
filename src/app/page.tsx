@@ -12,6 +12,8 @@ import {
   Pencil,
   Check,
   ShieldCheck,
+  ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import {
   collection,
@@ -21,9 +23,11 @@ import {
   doc,
   serverTimestamp,
   updateDoc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Header } from "@/components/Header";
+import { GoogleIcon } from "@/components/icons";
 import { useAuth } from "@/hooks/useAuth";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
@@ -64,17 +68,44 @@ export default function ProfilePage() {
 
   const isOwner = !!user;
 
-  // 사용자 이름: 로그인한 사용자 이름 (비로그인 시에는 기본 프로필명 '정시은')
-  const displayName =
-    user?.displayName ||
-    (user?.email ? user.email.split("@")[0] : null) ||
-    "정시은";
-  const bio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
+  // 3차시 프로필 정보 연동 (기본값: 정시은)
+  const [profileName, setProfileName] = useState("정시은");
+  const [profileBio, setProfileBio] = useState(
+    "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨"
+  );
+  const [usernameSlug, setUsernameSlug] = useState("sieun");
+
+  // 사용자 이름: Firestore 프로필명 > Google 계정명 > fallback 정시은
+  const displayName = profileName || user?.displayName || "정시은";
+  const bio = profileBio;
 
   // Firestore 실시간 동기화
   useEffect(() => {
     const targetUid = user?.uid || "anonymous";
     const cacheKey = `my-link-custom-links-${targetUid}`;
+
+    // 프로필 정보 로드 (이름, bio, username)
+    if (user) {
+      const cachedProfile = localStorage.getItem(`my-link-profile-${user.uid}`);
+      if (cachedProfile) {
+        try {
+          const parsed = JSON.parse(cachedProfile);
+          if (parsed.displayName) setProfileName(parsed.displayName);
+          if (parsed.bio) setProfileBio(parsed.bio);
+          if (parsed.username) setUsernameSlug(parsed.username);
+        } catch {}
+      }
+      getDoc(doc(db, "users", user.uid, "profile", "info"))
+        .then((snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data.displayName) setProfileName(data.displayName);
+            if (data.bio) setProfileBio(data.bio);
+            if (data.username) setUsernameSlug(data.username);
+          }
+        })
+        .catch(() => {});
+    }
 
     // 1. 로컬스토리지 캐시 우선 로드
     const saved = localStorage.getItem(cacheKey);
@@ -276,38 +307,168 @@ export default function ProfilePage() {
       {/* 2. 네오브루탈리즘 공통 상단 헤더 (비로그인: [Google로 로그인] / 로그인: [내이름] + [로그아웃]) */}
       <Header user={user} onLogin={loginWithGoogle} onLogout={logout} />
 
-      {/* 3. 중앙 메인 컨테이너 */}
-      <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[480px] lg:w-[420px] mx-auto flex flex-col items-center py-6 px-4 flex-1">
-        {/* 주인(로그인)일 때만 나타나는 개인화 관리자 상태 바 */}
-        {isOwner && (
+      {/* 3. 중앙 메인 컨테이너 (비로그인: 랜딩 페이지 / 로그인: 내 링크 관리 대시보드) */}
+      {!user ? (
+        <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[480px] lg:w-[420px] mx-auto flex flex-col items-center py-6 px-4 flex-1 animate-in fade-in duration-300">
+          {/* A. 메인 랜딩 히어로 카드 (Image 8 완벽 구현) */}
+          <div className="w-full bg-white border-[3px] border-black rounded-[14px] shadow-[6px_6px_0px_#000] p-6 mb-5 text-center relative">
+            <div className="absolute -top-3.5 left-4 bg-[#F43F5E] text-white border-[2.5px] border-black rounded-[6px] px-3 py-0.5 text-xs font-black tracking-wider shadow-[2px_2px_0px_#000] flex items-center gap-1 -rotate-2">
+              <span>⚡ COOL!</span>
+            </div>
+
+            <div className="pt-2">
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-neutral-900 leading-tight mb-2">
+                Development in
+                <div className="inline-block mx-1.5 px-3 py-0.5 bg-[#FEF08A] border-[3px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] rotate-1">
+                  One Link.
+                </div>
+              </h1>
+              <p className="text-xs sm:text-sm font-bold text-neutral-700 leading-relaxed mb-6 mt-3 max-w-[340px] mx-auto">
+                GitHub, 블로그, 포트폴리오까지.<br />
+                개발자를 위한 모든 링크를 한 페이지에 담아보세요.
+              </p>
+
+              <button
+                onClick={loginWithGoogle}
+                className="w-full py-3.5 px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white font-black text-sm rounded-[10px] border-[3px] border-black shadow-[4px_4px_0px_#000] hover:shadow-[6px_6px_0px_#000] hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] flex items-center justify-center gap-2 cursor-pointer transition-all"
+              >
+                <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center p-1 shadow-sm">
+                  <GoogleIcon className="w-4 h-4" />
+                </div>
+                <span>Google로 시작하기</span>
+              </button>
+            </div>
+          </div>
+
+          {/* B. 로그인 시 생성되는 내 페이지 미리보기 (PREVIEW) */}
+          <div className="w-full mb-5">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-xs font-black text-black flex items-center gap-1.5">
+                <span>👀</span>
+                <span>로그인 시 생성되는 내 페이지 미리보기</span>
+              </span>
+              <span className="text-[10px] font-black bg-black text-[#FEF08A] px-2 py-0.5 rounded-[4px] border border-black">
+                PREVIEW
+              </span>
+            </div>
+
+            {/* 미리보기 카드 컨테이너 */}
+            <div className="w-full bg-white border-[3px] border-black rounded-[14px] shadow-[5px_5px_0px_#000] p-4 space-y-3">
+              {/* 프로필 행 */}
+              <div className="flex items-center justify-between pb-3 border-b-[2px] border-black/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-11 h-11 rounded-full bg-[#DDD6FE] border-[2.5px] border-black font-black text-xs flex items-center justify-center shadow-[2px_2px_0px_#000]">
+                    시은
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-black text-sm text-black">정시은</span>
+                      <span className="text-[10px] font-black bg-black text-[#FEF08A] px-1.5 py-0.2 rounded">
+                        VIBE CODER
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-mono text-neutral-500 font-bold">
+                      users/{"{내UID}"}/links
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black px-2 py-0.5 bg-emerald-100 text-emerald-800 border-[1.5px] border-emerald-600 rounded-full flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  ONLINE
+                </span>
+              </div>
+
+              {/* 샘플 링크 카드들 (실제 클릭 가능) */}
+              <div className="space-y-2 pt-1">
+                <a
+                  href="https://github.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full p-2.5 bg-[#FEF08A] hover:bg-[#fde047] border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs font-black transition-all group"
+                >
+                  <span className="flex items-center gap-2">
+                    <span>🐙</span>
+                    <span>GitHub 메인 프로필</span>
+                  </span>
+                  <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-black group-hover:bg-black group-hover:text-white transition-colors">
+                    128회
+                  </span>
+                </a>
+
+                <a
+                  href="https://velog.io"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full p-2.5 bg-[#FED7AA] hover:bg-[#fdba74] border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs font-black transition-all group"
+                >
+                  <span className="flex items-center gap-2">
+                    <span>🍰</span>
+                    <span>기술 블로그 (Velog)</span>
+                  </span>
+                  <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-black group-hover:bg-black group-hover:text-white transition-colors">
+                    95회
+                  </span>
+                </a>
+              </div>
+
+              {/* 하단 안내 텍스트 */}
+              <div className="pt-2 text-center border-t-[1.5px] border-dashed border-black/20">
+                <p className="text-[11px] font-black text-neutral-700">
+                  👆 구글 로그인 시 나만의 링크를 추가/수정/삭제할 수 있습니다!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* C. 3차시 실제 생성된 개인 페이지 바로 둘러보기 배너 */}
+          <Link
+            href={`/${usernameSlug}`}
+            className="w-full p-3.5 bg-black hover:bg-neutral-800 text-[#FEF08A] border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000] flex items-center justify-between text-xs font-black transition-all hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px]"
+          >
+            <span className="flex items-center gap-2">
+              <span className="text-base">✨</span>
+              <span>실제 생성된 공개 페이지 둘러보기</span>
+            </span>
+            <span className="px-2 py-0.5 bg-[#FEF08A] text-black rounded text-[11px] font-black flex items-center gap-1">
+              <span>/{usernameSlug} 구경</span>
+              <ExternalLink className="w-3 h-3 stroke-[2.5]" />
+            </span>
+          </Link>
+        </main>
+      ) : (
+        <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[480px] lg:w-[420px] mx-auto flex flex-col items-center py-6 px-4 flex-1 animate-in fade-in duration-300">
+          {/* 주인(로그인)일 때 나타나는 개인화 관리자 상태 바 */}
           <div className="w-full mb-3 p-2.5 bg-white border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs animate-in fade-in duration-200">
             <div className="flex items-center gap-1.5 truncate">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 stroke-[2.5]" />
               <span className="font-black text-black truncate">
-                {displayName}님의 관리자 모드
+                {displayName}님의 관리자 홈
               </span>
             </div>
-            <div className="px-2 py-0.5 bg-neutral-100 border border-black rounded font-mono text-[10px] font-black text-neutral-700 shrink-0">
-              users/{user.uid.slice(0, 8)}...
-            </div>
+            <Link
+              href={`/${usernameSlug}`}
+              className="px-2 py-0.5 bg-[#FEF08A] hover:bg-yellow-300 border border-black rounded font-mono text-[10px] font-black text-black shrink-0 transition-colors flex items-center gap-1"
+              title="내 공개 페이지 바로가기"
+            >
+              <span>/{usernameSlug}</span>
+              <span className="text-emerald-700 font-bold">↗</span>
+            </Link>
           </div>
-        )}
 
-        {/* 상단 컨트롤 바 (테마 변경, QR 모달, 링크 복사) - 누구나 이용 가능 */}
-        <ControlBar
-          palettes={THEME_PALETTES}
-          currentTheme={themeColor}
-          onSelectTheme={setThemeColor}
-          onOpenQr={() => setShowQrModal(true)}
-          onCopyLink={handleCopyLink}
-          copied={copied}
-        />
+          {/* 상단 컨트롤 바 (테마 변경, QR 모달, 링크 복사) */}
+          <ControlBar
+            palettes={THEME_PALETTES}
+            currentTheme={themeColor}
+            onSelectTheme={setThemeColor}
+            onOpenQr={() => setShowQrModal(true)}
+            onCopyLink={handleCopyLink}
+            copied={copied}
+          />
 
-        {/* [방식 1: 깔끔한 프로필] 프로필 카드 섹션 */}
-        <ProfileHeader name={displayName} bio={bio} themeColor={themeColor} />
+          {/* 프로필 카드 섹션 */}
+          <ProfileHeader name={displayName} bio={bio} themeColor={themeColor} />
 
-        {/* 주인(로그인)일 때만 짠! 하고 나타나는 링크 추가 & 관리 버튼 */}
-        {isOwner && (
+          {/* 링크 추가 & 관리 버튼 */}
           <div className="w-full mb-4 grid grid-cols-2 gap-2 animate-in fade-in duration-200">
             <Button
               variant="outline"
@@ -325,101 +486,99 @@ export default function ProfilePage() {
               <span>링크 관리 (/mypage)</span>
             </Link>
           </div>
-        )}
 
-        {/* 카테고리 분류 탭 */}
-        <CategoryTabs
-          activeCategory={activeCategory}
-          onSelectCategory={setActiveCategory}
-          links={links}
-        />
+          {/* 카테고리 분류 탭 */}
+          <CategoryTabs
+            activeCategory={activeCategory}
+            onSelectCategory={setActiveCategory}
+            links={links}
+          />
 
-        {/* [방식 1] 실제 링크 카드 목록 */}
-        {/* 비로그인 방문자: ✏️, 🗑️ 없이 깔끔한 링크 카드 (클릭해서 바로 이동!) */}
-        {/* 로그인한 주인: 각 카드마다 ✏️ 수정, 🗑️ 삭제 버튼이 활성화됨! */}
-        <div className="w-full space-y-3.5">
-          {filteredLinks.length === 0 ? (
-            <Card className="w-full p-8 text-center bg-white">
-              <p className="font-black text-sm text-neutral-600">
-                등록된 링크가 없습니다.
-              </p>
-            </Card>
-          ) : (
-            filteredLinks.map((link) =>
-              editingId === link.id ? (
-                <div
-                  key={link.id}
-                  className="p-4 bg-[#FEF9C3] border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000] space-y-3 transition-all"
-                >
-                  <div className="flex items-center justify-between pb-1.5 border-b-[2px] border-black/20">
-                    <span className="text-xs font-black flex items-center gap-1.5 text-black">
-                      <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
-                      <span>링크 인라인 수정</span>
-                    </span>
-                    <span className="text-[10px] font-black bg-black text-[#FEF08A] px-2 py-0.5 rounded-[4px]">
-                      수정 중
-                    </span>
-                  </div>
-
-                  <div className="space-y-2.5">
-                    <div>
-                      <label className="block text-[11px] font-black mb-1 text-neutral-900">
-                        링크 제목 *
-                      </label>
-                      <input
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        placeholder="수정할 제목 입력"
-                        className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
-                      />
+          {/* 링크 카드 목록 (로그인 상태이므로 수정/삭제 가능) */}
+          <div className="w-full space-y-3.5">
+            {filteredLinks.length === 0 ? (
+              <Card className="w-full p-8 text-center bg-white">
+                <p className="font-black text-sm text-neutral-600">
+                  등록된 링크가 없습니다. 상단의 [+ 새 링크 추가]를 눌러보세요!
+                </p>
+              </Card>
+            ) : (
+              filteredLinks.map((link) =>
+                editingId === link.id ? (
+                  <div
+                    key={link.id}
+                    className="p-4 bg-[#FEF9C3] border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000] space-y-3 transition-all"
+                  >
+                    <div className="flex items-center justify-between pb-1.5 border-b-[2px] border-black/20">
+                      <span className="text-xs font-black flex items-center gap-1.5 text-black">
+                        <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>링크 인라인 수정</span>
+                      </span>
+                      <span className="text-[10px] font-black bg-black text-[#FEF08A] px-2 py-0.5 rounded-[4px]">
+                        수정 중
+                      </span>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-black mb-1 text-neutral-900">
-                        링크 주소 (URL) *
-                      </label>
-                      <input
-                        type="text"
-                        value={editUrl}
-                        onChange={(e) => setEditUrl(e.target.value)}
-                        placeholder="https://..."
-                        className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
-                      />
+
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="block text-[11px] font-black mb-1 text-neutral-900">
+                          링크 제목 *
+                        </label>
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          placeholder="수정할 제목 입력"
+                          className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-black mb-1 text-neutral-900">
+                          링크 주소 (URL) *
+                        </label>
+                        <input
+                          type="text"
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          placeholder="https://..."
+                          className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="py-1.5 px-3 bg-white hover:bg-neutral-100 border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveEdit(link.id)}
+                        className="py-1.5 px-3.5 bg-[#22C55E] hover:bg-[#16a34a] text-white border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center gap-1"
+                      >
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>저장</span>
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={handleCancelEdit}
-                      className="py-1.5 px-3 bg-white hover:bg-neutral-100 border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
-                    >
-                      취소
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSaveEdit(link.id)}
-                      className="py-1.5 px-3.5 bg-[#22C55E] hover:bg-[#16a34a] text-white border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center gap-1"
-                    >
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                      <span>저장</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <LinkCard
-                  key={link.id}
-                  link={link}
-                  onClick={handleLinkClick}
-                  onDelete={handleDeleteLink}
-                  onEdit={handleStartEdit}
-                  isOwner={isOwner}
-                />
+                ) : (
+                  <LinkCard
+                    key={link.id}
+                    link={link}
+                    onClick={handleLinkClick}
+                    onDelete={handleDeleteLink}
+                    onEdit={handleStartEdit}
+                    isOwner={true}
+                  />
+                )
               )
-            )
-          )}
-        </div>
-      </main>
+            )}
+          </div>
+        </main>
+      )}
 
       {/* 새 링크 추가 모달 (주인 전용) */}
       <AddLinkModal
