@@ -26,56 +26,7 @@ import {
   XTwitterIcon,
 } from "@/components/icons";
 
-interface LinkItem {
-  id: string;
-  title: string;
-  subtitle: string;
-  url: string;
-  tag?: string;
-  bgColor: string;
-  isCustom?: boolean;
-}
-
-const DEFAULT_LINKS: LinkItem[] = [
-  {
-    id: "github-link",
-    title: "GitHub 저장소 방문하기",
-    subtitle: "my-link-hy 소스 코드 & 개발 기록 보러가기",
-    url: "https://github.com/jse12345/my-link-hy",
-    tag: "GITHUB",
-    bgColor: "bg-white",
-  },
-  {
-    id: "portfolio",
-    title: "바이브 코딩 포트폴리오",
-    subtitle: "AI와 함께 만든 창의적인 웹 프로젝트 모음",
-    url: "https://github.com/jse12345",
-    tag: "FEATURED",
-    bgColor: "bg-[#FDE047]", // 옐로우
-  },
-  {
-    id: "blog",
-    title: "공부 기록 & 기술 블로그",
-    subtitle: "Next.js 16, TypeScript, 디자인 시스템 학습 일지",
-    url: "https://github.com/jse12345",
-    bgColor: "bg-[#BAE6FD]", // 스카이블루
-  },
-  {
-    id: "stack",
-    title: "사용 기술 스택 & 툴",
-    subtitle: "Next.js 16 · React 19 · Tailwind CSS · TypeScript",
-    url: "https://nextjs.org",
-    tag: "TECH",
-    bgColor: "bg-[#A7F3D0]", // 민트
-  },
-  {
-    id: "contact",
-    title: "커피챗 & 협업 문의하기",
-    subtitle: "used776655@gmail.com 으로 언제든 연락주세요",
-    url: "mailto:used776655@gmail.com",
-    bgColor: "bg-[#FBCFE8]", // 베이비핑크
-  },
-];
+import { DUMMY_LINKS, type LinkItem } from "@/data/links";
 
 const THEME_PALETTES = [
   { id: "yellow", name: "선샤인 옐로우", bg: "bg-[#FEF08A]", code: "#FEF08A" },
@@ -90,7 +41,7 @@ export default function ProfilePage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [themeColor, setThemeColor] = useState("#FEF08A");
-  const [links, setLinks] = useState<LinkItem[]>(DEFAULT_LINKS);
+  const [links, setLinks] = useState<LinkItem[]>(DUMMY_LINKS);
 
   // 새 링크 입력 폼 상태
   const [newTitle, setNewTitle] = useState("");
