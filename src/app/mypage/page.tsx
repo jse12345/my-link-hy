@@ -23,9 +23,10 @@ import {
   X,
   AlertTriangle,
   LogOut,
+  UserCheck,
 } from "lucide-react";
 
-import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { GoogleIcon } from "@/components/icons";
 import { useAuth } from "@/hooks/useAuth";
@@ -52,6 +53,123 @@ export default function MyPage() {
 
   // 11주차: 구글 소셜 로그인 상태 (useAuth)
   const { user: currentUser, loginWithGoogle: handleGoogleLogin, logout: handleLogout } = useAuth();
+
+  // 3차시: 프로필 수정 상태 (username, displayName, bio)
+  const [profileUsername, setProfileUsername] = useState("sieun");
+  const [profileDisplayName, setProfileDisplayName] = useState("정시은");
+  const [profileBio, setProfileBio] = useState("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨");
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [profileSavedMsg, setProfileSavedMsg] = useState("");
+
+  // 3차시: Firestore에서 프로필 데이터 불러오기 (users/{userId}/profile/info)
+  useEffect(() => {
+    if (!currentUser) {
+      setProfileUsername("sieun");
+      setProfileDisplayName("정시은");
+      setProfileBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨");
+      return;
+    }
+
+    const defaultUsername = currentUser.email
+      ? currentUser.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "")
+      : "sieun";
+    const defaultName = currentUser.displayName || "정시은";
+    const defaultBio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
+
+    // 캐시 우선 로드
+    const cached = localStorage.getItem(`my-link-profile-${currentUser.uid}`);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        setProfileUsername(parsed.username || defaultUsername);
+        setProfileDisplayName(parsed.displayName || defaultName);
+        setProfileBio(parsed.bio || defaultBio);
+      } catch {
+        // ignore
+      }
+    }
+
+    // Firestore 프로필 조회
+    async function loadProfile() {
+      try {
+        const snap = await getDoc(doc(db, "users", currentUser.uid, "profile", "info"));
+        if (snap.exists()) {
+          const data = snap.data();
+          setProfileUsername(data.username || defaultUsername);
+          setProfileDisplayName(data.displayName || defaultName);
+          setProfileBio(data.bio || defaultBio);
+        } else {
+          setProfileUsername(defaultUsername);
+          setProfileDisplayName(defaultName);
+          setProfileBio(defaultBio);
+        }
+      } catch (e) {
+        console.warn("프로필 로드 에러:", e);
+      }
+    }
+    loadProfile();
+  }, [currentUser]);
+
+  // 3차시: 프로필 저장 핸들러
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) {
+      alert("프로필을 수정하려면 먼저 Google 로그인이 필요합니다!");
+      return;
+    }
+
+    const cleanUsername = profileUsername.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    const cleanName = profileDisplayName.trim();
+    const cleanBio = profileBio.trim();
+
+    if (!cleanUsername) {
+      alert("공유 URL(username)을 입력해주세요!");
+      return;
+    }
+    if (!cleanName) {
+      alert("화면 표시 이름(displayName)을 입력해주세요!");
+      return;
+    }
+
+    setIsProfileSaving(true);
+    try {
+      const targetUid = currentUser.uid;
+      const profileData = {
+        username: cleanUsername,
+        displayName: cleanName,
+        bio: cleanBio,
+        updatedAt: serverTimestamp(),
+      };
+
+      // 1) users/{userId}/profile/info
+      await setDoc(doc(db, "users", targetUid, "profile", "info"), profileData, { merge: true });
+
+      // 2) users/{userId} 루트 문서
+      await setDoc(doc(db, "users", targetUid), profileData, { merge: true });
+
+      // 3) usernames/{username} 매핑 문서 (/[username] 라우팅용)
+      await setDoc(doc(db, "usernames", cleanUsername), {
+        uid: targetUid,
+        displayName: cleanName,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      localStorage.setItem(`my-link-profile-${targetUid}`, JSON.stringify(profileData));
+      localStorage.setItem(`my-link-user-${cleanUsername}`, JSON.stringify({
+        displayName: cleanName,
+        bio: cleanBio,
+        uid: targetUid,
+      }));
+
+      setProfileSavedMsg("프로필이 성공적으로 저장되었습니다!");
+      alert(`✅ 프로필이 성공적으로 저장되었습니다!\n\n공유 URL: localhost:3000/${cleanUsername}`);
+      setTimeout(() => setProfileSavedMsg(""), 3000);
+    } catch (err: any) {
+      alert("프로필 저장 중 오류가 발생했습니다: " + err.message);
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
 
   // 로컬스토리지 및 Firestore 실시간 동기화 (경로: users/{user.uid}/links)
   useEffect(() => {
@@ -455,6 +573,109 @@ export default function MyPage() {
             </div>
           </div>
         </header>
+
+        {/* 3차시: 프로필 편집 영역 (users/{userId}/profile/) */}
+        <section className="w-full bg-[#FEF08A] border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-5 mb-6">
+          <div className="flex items-center justify-between mb-4 border-b-[2.5px] border-black pb-2.5">
+            <h2 className="font-black text-base flex items-center gap-2 text-black">
+              <UserCheck className="w-5 h-5 stroke-[2.5]" />
+              내 프로필 설정
+            </h2>
+            <span className="text-[10px] font-black bg-black text-[#FEF08A] px-2 py-0.5 rounded-[4px] border border-black">
+              3차시 실습
+            </span>
+          </div>
+
+          <p className="text-xs font-bold text-neutral-800 mb-4">
+            다른 사람들에게 공유할 프로필 정보(이름, 소개글, 주소)를 수정하고 저장해보세요!
+          </p>
+
+          {profileSavedMsg && (
+            <div className="mb-4 p-2.5 bg-emerald-100 border-[2px] border-emerald-600 rounded-[8px] flex items-center gap-2 text-emerald-800 text-xs font-black animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 shrink-0 stroke-[2.5]" />
+              <span>{profileSavedMsg}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveProfile} className="space-y-3.5">
+            {/* 1. 고유 사용자명 (URL 경로) */}
+            <div>
+              <label htmlFor="profile-username" className="block text-xs font-black mb-1.5 text-neutral-900">
+                1. 공유 사용자명 (username) *
+              </label>
+              <div className="flex items-center bg-white border-[2.5px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] overflow-hidden">
+                <span className="px-2.5 py-2.5 bg-neutral-100 border-r-[2px] border-black font-mono text-xs font-black text-neutral-600 shrink-0">
+                  /
+                </span>
+                <input
+                  id="profile-username"
+                  type="text"
+                  placeholder="예: sieun (영문 소문자, 숫자, 하이픈)"
+                  value={profileUsername}
+                  onChange={(e) =>
+                    setProfileUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))
+                  }
+                  className="w-full px-3 py-2 font-mono font-bold text-sm focus:outline-none placeholder:text-neutral-400"
+                />
+              </div>
+              <p className="text-[11px] font-bold text-neutral-600 mt-1">
+                👉 내 고유 공개 주소: <span className="font-mono text-black font-black">http://localhost:3000/{profileUsername || "sieun"}</span>
+              </p>
+            </div>
+
+            {/* 2. 표시 이름 (displayName) */}
+            <div>
+              <label htmlFor="profile-displayname" className="block text-xs font-black mb-1.5 text-neutral-900">
+                2. 화면 표시 이름 (displayName) *
+              </label>
+              <input
+                id="profile-displayname"
+                type="text"
+                placeholder="예: 정시은 (한글/영문 모두 가능)"
+                value={profileDisplayName}
+                onChange={(e) => setProfileDisplayName(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border-[2.5px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] font-bold text-sm focus:outline-none focus:ring-2 focus:ring-black placeholder:text-neutral-400"
+              />
+            </div>
+
+            {/* 3. 소개글 (bio) */}
+            <div>
+              <label htmlFor="profile-bio" className="block text-xs font-black mb-1.5 text-neutral-900">
+                3. 한 줄 소개글 (bio)
+              </label>
+              <textarea
+                id="profile-bio"
+                rows={2}
+                placeholder="나를 표현하는 한 줄 소개글을 작성해보세요!"
+                value={profileBio}
+                onChange={(e) => setProfileBio(e.target.value)}
+                className="w-full px-3.5 py-2 bg-white border-[2.5px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black placeholder:text-neutral-400 resize-none"
+              />
+            </div>
+
+            {/* 버튼 그룹 */}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="submit"
+                disabled={isProfileSaving}
+                className="flex-1 py-3 px-4 bg-black hover:bg-neutral-800 text-[#FEF08A] font-black text-xs rounded-[8px] border-[2.5px] border-black shadow-[3px_3px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 transition-all"
+              >
+                <Sparkles className="w-4 h-4 stroke-[2.5]" />
+                <span>{isProfileSaving ? "저장 중..." : "💾 프로필 저장하기"}</span>
+              </button>
+
+              <Link
+                href={`/${profileUsername || "sieun"}`}
+                target="_blank"
+                className="py-3 px-3.5 bg-white hover:bg-neutral-50 text-black font-black text-xs rounded-[8px] border-[2.5px] border-black shadow-[3px_3px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] flex items-center justify-center gap-1 cursor-pointer transition-all"
+                title="새 탭에서 내 공개 페이지 확인"
+              >
+                <span>내 페이지 보기</span>
+                <ExternalLink className="w-3.5 h-3.5 stroke-[2.5]" />
+              </Link>
+            </div>
+          </form>
+        </section>
 
         {/* 중간: 링크 추가 폼 영역 */}
         <section className="w-full bg-white border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-5 mb-6">
