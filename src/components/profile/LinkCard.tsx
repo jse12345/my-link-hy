@@ -20,11 +20,12 @@ import { Badge } from "@/components/ui/badge";
 interface LinkCardProps {
   link: LinkItem;
   onClick: (id: string) => void;
-  onDelete: (id: string, e: React.MouseEvent) => void;
+  onDelete?: (id: string, e: React.MouseEvent) => void;
   onEdit?: (link: LinkItem, e: React.MouseEvent) => void;
+  isOwner?: boolean;
 }
 
-export function LinkCard({ link, onClick, onDelete, onEdit }: LinkCardProps) {
+export function LinkCard({ link, onClick, onDelete, onEdit, isOwner = false }: LinkCardProps) {
   const getLinkIcon = () => {
     if (link.tag === "GITHUB" || link.url.includes("github.com")) {
       return <FolderGit2 className="w-5 h-5 text-black stroke-[2.5]" />;
@@ -95,7 +96,7 @@ export function LinkCard({ link, onClick, onDelete, onEdit }: LinkCardProps) {
           {link.subtitle}
         </p>
 
-        {/* PRD F-4: 실시간 링크 방문 통계 카운터 뱃지 */}
+        {/* 실시간 링크 방문 통계 카운터 뱃지 */}
         <div className="mt-1 flex items-center gap-2">
           <Badge variant="counter" size="sm">
             <Eye className="w-2.5 h-2.5 stroke-[2.5] mr-1" />
@@ -104,35 +105,37 @@ export function LinkCard({ link, onClick, onDelete, onEdit }: LinkCardProps) {
         </div>
       </div>
 
-      {/* 우측 액션: 수정(파란색 ✏️), 삭제(빨간색 🗑️) - 항상 표시 */}
+      {/* 우측 액션: 주인(로그인)일 때만 수정/삭제 버튼 노출, 방문자에겐 깔끔한 화살표만 노출 */}
       <div className="flex items-center gap-1.5 shrink-0">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log("수정 버튼 클릭:", link.title);
-            onEdit?.(link, e);
-          }}
-          aria-label="링크 수정"
-          className="w-8 h-8 rounded-[6px] bg-blue-500 hover:bg-blue-600 text-white border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer shadow-[1px_1px_0px_#000]"
-        >
-          <Pencil className="w-4 h-4 stroke-[2.5]" />
-        </button>
+        {isOwner && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onEdit?.(link, e);
+              }}
+              aria-label="링크 수정"
+              className="w-8 h-8 rounded-[6px] bg-blue-500 hover:bg-blue-600 text-white border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer shadow-[1px_1px_0px_#000]"
+            >
+              <Pencil className="w-4 h-4 stroke-[2.5]" />
+            </button>
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log("삭제 버튼 클릭:", link.title);
-            onDelete(link.id, e);
-          }}
-          aria-label="링크 삭제"
-          className="w-8 h-8 rounded-[6px] bg-rose-500 hover:bg-rose-600 text-white border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer shadow-[1px_1px_0px_#000]"
-        >
-          <Trash2 className="w-4 h-4 stroke-[2.5]" />
-        </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete?.(link.id, e);
+              }}
+              aria-label="링크 삭제"
+              className="w-8 h-8 rounded-[6px] bg-rose-500 hover:bg-rose-600 text-white border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer shadow-[1px_1px_0px_#000]"
+            >
+              <Trash2 className="w-4 h-4 stroke-[2.5]" />
+            </button>
+          </>
+        )}
 
         <div className="w-8 h-8 rounded-[6px] bg-black text-white flex items-center justify-center group-hover:bg-neutral-800 transition-colors">
           <ArrowUpRight className="w-4 h-4 stroke-[3]" />

@@ -12,8 +12,6 @@ import {
   Pencil,
   Check,
   ShieldCheck,
-  Sparkles,
-  Lock,
 } from "lucide-react";
 import {
   collection,
@@ -25,7 +23,6 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { GoogleIcon } from "@/components/icons";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -65,6 +62,8 @@ export default function ProfilePage() {
   const [editTitle, setEditTitle] = useState("");
   const [editUrl, setEditUrl] = useState("");
 
+  const isOwner = !!user;
+
   // 사용자 이름: 로그인한 사용자 이름 (비로그인 시에는 기본 프로필명 '정시은')
   const displayName =
     user?.displayName ||
@@ -72,7 +71,7 @@ export default function ProfilePage() {
     "정시은";
   const bio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
 
-  // Firestore 실시간 동기화 (경로: users/{user.uid}/links 또는 공개 링크)
+  // Firestore 실시간 동기화
   useEffect(() => {
     const targetUid = user?.uid || "anonymous";
     const cacheKey = `my-link-custom-links-${targetUid}`;
@@ -148,15 +147,6 @@ export default function ProfilePage() {
     saveLinks(updated);
   };
 
-  // [권한 모델: 수정은 본인만!] 링크 추가
-  const handleAddLinkClick = () => {
-    if (!user) {
-      alert("⚠️ 권한 안내: 링크를 새로 추가하려면 먼저 Google 로그인이 필요합니다!\n상단의 [Google로 로그인] 버튼을 눌러주세요.");
-      return;
-    }
-    setShowAddModal(true);
-  };
-
   const handleAddLink = (newLinkItem: LinkItem) => {
     if (!user) return;
     saveLinks([newLinkItem, ...links]);
@@ -178,14 +168,10 @@ export default function ProfilePage() {
     }
   };
 
-  // [권한 모델: 수정은 본인만!] 링크 삭제
   const handleDeleteLink = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) {
-      alert("⚠️ 권한 안내: 링크를 삭제하려면 먼저 Google 로그인이 필요합니다!");
-      return;
-    }
+    if (!user) return;
     const target = links.find((l) => l.id === id);
     if (target) {
       setDeleteTarget(target);
@@ -193,12 +179,7 @@ export default function ProfilePage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!deleteTarget) return;
-    if (!user) {
-      alert("로그인이 필요합니다. 먼저 Google로 로그인해주세요!");
-      setDeleteTarget(null);
-      return;
-    }
+    if (!deleteTarget || !user) return;
     try {
       await deleteDoc(doc(db, "users", user.uid, "links", deleteTarget.id));
     } catch (err) {
@@ -208,12 +189,8 @@ export default function ProfilePage() {
     setDeleteTarget(null);
   };
 
-  // [권한 모델: 수정은 본인만!] 링크 수정
   const handleStartEdit = (link: LinkItem) => {
-    if (!user) {
-      alert("⚠️ 권한 안내: 링크를 수정(✏️)하려면 먼저 Google 로그인이 필요합니다!");
-      return;
-    }
+    if (!user) return;
     setEditingId(link.id);
     setEditTitle(link.title);
     setEditUrl(link.url);
@@ -226,10 +203,7 @@ export default function ProfilePage() {
   };
 
   const handleSaveEdit = async (id: string) => {
-    if (!user) {
-      alert("수정하려면 먼저 Google 로그인이 필요합니다!");
-      return;
-    }
+    if (!user) return;
 
     const trimmedTitle = editTitle.trim();
     const trimmedUrl = editUrl.trim();
@@ -296,51 +270,21 @@ export default function ProfilePage() {
       style={{ backgroundColor: themeColor }}
       className="min-h-screen min-w-[360px] text-black flex flex-col justify-between selection:bg-black selection:text-[#FEF08A] transition-colors duration-300 font-sans relative overflow-x-auto"
     >
-      {/* 1. 상단 롤링 마퀴 배너 (네오브루탈리즘 공통 통일) */}
+      {/* 1. 상단 롤링 마퀴 배너 (네오브루탈리즘 공통) */}
       <MarqueeTicker />
 
-      {/* 2. 네오브루탈리즘 공통 상단 헤더 */}
+      {/* 2. 네오브루탈리즘 공통 상단 헤더 (비로그인: [Google로 로그인] / 로그인: [내이름] + [로그아웃]) */}
       <Header user={user} onLogin={loginWithGoogle} onLogout={logout} />
 
       {/* 3. 중앙 메인 컨테이너 */}
       <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[480px] lg:w-[420px] mx-auto flex flex-col items-center py-6 px-4 flex-1">
-        {/* [비로그인 상태] 상단 설명 배너 ("조회는 공개, 수정은 본인만!" 안내) */}
-        {!user ? (
-          <div className="w-full mb-5 p-5 bg-white border-[3px] border-black rounded-[14px] shadow-[5px_5px_0px_#000] text-center space-y-3 relative">
-            <div className="absolute -top-3 -left-1.5 bg-[#F43F5E] text-white border-[2px] border-black text-[10px] font-black px-2 py-0.5 rounded shadow-[1.5px_1.5px_0px_#000] rotate-[-4deg]">
-              ⚡ 둘러보기 모드
-            </div>
-            
-            <div className="pt-1">
-              <h1 className="text-xl md:text-2xl font-black text-black leading-tight">
-                Development in{" "}
-                <span className="bg-[#FEF08A] px-1.5 py-0.5 border-[2px] border-black rounded shadow-[2px_2px_0px_#000] inline-block">
-                  One Link.
-                </span>
-              </h1>
-            </div>
-
-            <p className="text-xs font-bold text-neutral-700 leading-relaxed max-w-xs mx-auto">
-              아래의 링크들을 자유롭게 둘러보세요! 👀<br />
-              Google 로그인 시 나만의 링크를 추가/수정/삭제할 수 있습니다.
-            </p>
-
-            <button
-              type="button"
-              onClick={loginWithGoogle}
-              className="w-full py-3 px-4 bg-[#4285F4] hover:bg-[#3367D6] text-white border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] hover:shadow-[5px_5px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] font-black text-xs md:text-sm flex items-center justify-center gap-2 cursor-pointer transition-all"
-            >
-              <GoogleIcon className="w-4 h-4 bg-white rounded-full p-0.5" />
-              <span>Google로 로그인하고 내 링크 관리하기</span>
-            </button>
-          </div>
-        ) : (
-          /* [로그인 상태] 개인화 대시보드 상태 바 */
-          <div className="w-full mb-3 p-2.5 bg-white border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs">
+        {/* 주인(로그인)일 때만 나타나는 개인화 관리자 상태 바 */}
+        {isOwner && (
+          <div className="w-full mb-3 p-2.5 bg-white border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs animate-in fade-in duration-200">
             <div className="flex items-center gap-1.5 truncate">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 stroke-[2.5]" />
               <span className="font-black text-black truncate">
-                {displayName}님의 개인화 대시보드
+                {displayName}님의 관리자 모드
               </span>
             </div>
             <div className="px-2 py-0.5 bg-neutral-100 border border-black rounded font-mono text-[10px] font-black text-neutral-700 shrink-0">
@@ -349,7 +293,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* 상단 컨트롤 바 (테마 변경, QR 모달, 링크 복사) - 누구나 자유롭게 이용 가능! */}
+        {/* 상단 컨트롤 바 (테마 변경, QR 모달, 링크 복사) - 누구나 이용 가능 */}
         <ControlBar
           palettes={THEME_PALETTES}
           currentTheme={themeColor}
@@ -359,42 +303,45 @@ export default function ProfilePage() {
           copied={copied}
         />
 
-        {/* [조회는 누구나 공개!] 프로필 카드 섹션 */}
+        {/* [방식 1: 깔끔한 프로필] 프로필 카드 섹션 */}
         <ProfileHeader name={displayName} bio={bio} themeColor={themeColor} />
 
-        {/* 새 링크 직접 추가 버튼 & 마이페이지 링크 관리 */}
-        <div className="w-full mb-4 grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            onClick={handleAddLinkClick}
-            className="w-full py-5 font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>새 링크 추가</span>
-            {!user && <Lock className="w-3 h-3 text-neutral-400 ml-0.5" />}
-          </Button>
-          <Link
-            href="/mypage"
-            className="w-full py-2.5 px-3 bg-[#5B5FC7] hover:bg-[#4a4ea5] text-white border-[3px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] hover:shadow-[5px_5px_0px_#000] hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] font-black text-xs flex items-center justify-center gap-1.5 transition-all text-center justify-center"
-          >
-            <Settings className="w-4 h-4 stroke-[2.5]" />
-            <span>링크 관리 (/mypage)</span>
-          </Link>
-        </div>
+        {/* 주인(로그인)일 때만 짠! 하고 나타나는 링크 추가 & 관리 버튼 */}
+        {isOwner && (
+          <div className="w-full mb-4 grid grid-cols-2 gap-2 animate-in fade-in duration-200">
+            <Button
+              variant="outline"
+              onClick={() => setShowAddModal(true)}
+              className="w-full py-5 font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>새 링크 추가</span>
+            </Button>
+            <Link
+              href="/mypage"
+              className="w-full py-2.5 px-3 bg-[#5B5FC7] hover:bg-[#4a4ea5] text-white border-[3px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] hover:shadow-[5px_5px_0px_#000] hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] font-black text-xs flex items-center justify-center gap-1.5 transition-all text-center justify-center"
+            >
+              <Settings className="w-4 h-4 stroke-[2.5]" />
+              <span>링크 관리 (/mypage)</span>
+            </Link>
+          </div>
+        )}
 
-        {/* [조회는 누구나 공개!] 카테고리 분류 탭 */}
+        {/* 카테고리 분류 탭 */}
         <CategoryTabs
           activeCategory={activeCategory}
           onSelectCategory={setActiveCategory}
           links={links}
         />
 
-        {/* [조회는 누구나 공개!] 실제 링크 카드 목록 (누구나 클릭하여 이동 가능!) */}
+        {/* [방식 1] 실제 링크 카드 목록 */}
+        {/* 비로그인 방문자: ✏️, 🗑️ 없이 깔끔한 링크 카드 (클릭해서 바로 이동!) */}
+        {/* 로그인한 주인: 각 카드마다 ✏️ 수정, 🗑️ 삭제 버튼이 활성화됨! */}
         <div className="w-full space-y-3.5">
           {filteredLinks.length === 0 ? (
             <Card className="w-full p-8 text-center bg-white">
               <p className="font-black text-sm text-neutral-600">
-                등록된 링크가 없습니다. 상단의 [+ 새 링크 추가]를 눌러보세요!
+                등록된 링크가 없습니다.
               </p>
             </Card>
           ) : (
@@ -466,6 +413,7 @@ export default function ProfilePage() {
                   onClick={handleLinkClick}
                   onDelete={handleDeleteLink}
                   onEdit={handleStartEdit}
+                  isOwner={isOwner}
                 />
               )
             )
@@ -473,7 +421,7 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      {/* 새 링크 추가 모달 */}
+      {/* 새 링크 추가 모달 (주인 전용) */}
       <AddLinkModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
@@ -483,7 +431,7 @@ export default function ProfilePage() {
       {/* QR 코드 모달 */}
       <QrModal isOpen={showQrModal} onClose={() => setShowQrModal(false)} />
 
-      {/* 삭제 확인 모달 다이얼로그 */}
+      {/* 삭제 확인 모달 다이얼로그 (주인 전용) */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
           <div className="w-full max-w-sm bg-white border-[3px] border-black rounded-[14px] shadow-[8px_8px_0px_#000] p-6 relative text-left space-y-4">
