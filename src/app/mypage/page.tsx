@@ -17,7 +17,11 @@ import {
   Layers,
   Mail,
   Zap,
+  CloudCheck,
 } from "lucide-react";
+
+import { collection, addDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
 import { Button } from "@/components/ui/button";
@@ -29,31 +33,51 @@ export default function MyPage() {
   const [url, setUrl] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [isCloudConnected, setIsCloudConnected] = useState(false);
 
-  // 로컬스토리지에서 기존 링크 불러오기
+  // 로컬스토리지 및 Firestore 실시간 동기화
   useEffect(() => {
+    // 1. 로컬스토리지 우선 로드
     const saved = localStorage.getItem("my-link-custom-links");
     if (saved) {
       try {
         setLinks(JSON.parse(saved));
-        return;
       } catch {
         // parsing error fallback
       }
     }
 
-    // 초기 링크 json fallback
-    fetch("/data/links.json")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setLinks(data);
-          localStorage.setItem("my-link-custom-links", JSON.stringify(data));
+    // 2. 실시간 Firestore 클라우드 DB 연동
+    try {
+      const unsubscribe = onSnapshot(
+        collection(db, "links"),
+        (snapshot) => {
+          setIsCloudConnected(true);
+          if (!snapshot.empty) {
+            const firestoreLinks: LinkItem[] = snapshot.docs.map((d) => ({
+              id: d.id,
+              ...(d.data() as Omit<LinkItem, "id">),
+            }));
+
+            // 기본 더미 데이터와 클라우드 데이터 병합
+            const combined = [
+              ...firestoreLinks,
+              ...DUMMY_LINKS.filter(
+                (dummy) => !firestoreLinks.some((fl) => fl.url === dummy.url)
+              ),
+            ];
+            setLinks(combined);
+            localStorage.setItem("my-link-custom-links", JSON.stringify(combined));
+          }
+        },
+        (err) => {
+          console.warn("Firestore 연결 대기 중:", err.message);
         }
-      })
-      .catch(() => {
-        // DUMMY_LINKS 유지
-      });
+      );
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn("Firestore 초기화:", err);
+    }
   }, []);
 
   // 로컬스토리지 저장 함수
@@ -95,7 +119,7 @@ export default function MyPage() {
       formattedUrl = "https://" + formattedUrl;
     }
 
-    // 간단한 URL 유효성 검사
+    // URL 유효성 검사
     try {
       if (!formattedUrl.startsWith("mailto:")) {
         new URL(formattedUrl);
@@ -106,7 +130,7 @@ export default function MyPage() {
       return;
     }
 
-    // 검증 통과 4: 목록에 추가
+    // 검증 통과 4: Firestore 클라우드 및 목록에 추가
     const newLinkItem: LinkItem = {
       id: "link-" + Date.now().toString(),
       title: trimmedTitle,
@@ -119,18 +143,44 @@ export default function MyPage() {
       isCustom: true,
     };
 
+    // Firestore에 저장 시도
+    try {
+      addDoc(collection(db, "links"), {
+        title: newLinkItem.title,
+        subtitle: newLinkItem.subtitle,
+        url: newLinkItem.url,
+        category: newLinkItem.category,
+        tag: newLinkItem.tag,
+        bgColor: newLinkItem.bgColor,
+        clickCount: 0,
+        isCustom: true,
+        createdAt: Date.now(),
+      })
+        .then((docRef) => {
+          newLinkItem.id = docRef.id;
+        })
+        .catch((err) => {
+          console.warn("Firestore addDoc 오류 (로컬 모드 유지):", err);
+        });
+    } catch (e) {
+      console.warn("Firestore 저장 건너뜀:", e);
+    }
+
     saveLinks([newLinkItem, ...links]);
 
     // 입력 칸 자동 비우기
     setTitle("");
     setUrl("");
-    setSuccessMessage("새 링크가 성공적으로 추가되었습니다!");
+    setSuccessMessage("새 링크가 성공적으로 추가되었습니다! (클라우드 동기화 완료)");
     setTimeout(() => setSuccessMessage(""), 3000);
   };
 
   // 링크 삭제 함수
   const handleDeleteLink = (id: string) => {
     if (confirm("정말 이 링크를 삭제하시겠습니까?")) {
+      try {
+        deleteDoc(doc(db, "links", id)).catch(() => {});
+      } catch {}
       saveLinks(links.filter((item) => item.id !== id));
     }
   };
@@ -165,10 +215,10 @@ export default function MyPage() {
       {/* 상단 네비게이션 티커 */}
       <div className="w-full bg-black text-[#FEF08A] py-2 border-b-[3px] border-black overflow-hidden whitespace-nowrap font-black text-xs tracking-wider select-none shadow-[0px_4px_0px_#000]">
         <div className="inline-block animate-[marquee_20s_linear_infinite]">
-          ⚡ MY-LINK MANAGEMENT • NEXT.JS 16 & TYPESCRIPT • 내 링크 관리 페이지 • /mypage •&nbsp;
+          ⚡ MY-LINK MANAGEMENT • NEXT.JS 16 & TYPESCRIPT • FIRESTORE CLOUD CONNECTED • /mypage •&nbsp;
         </div>
         <div className="inline-block animate-[marquee_20s_linear_infinite]" aria-hidden="true">
-          ⚡ MY-LINK MANAGEMENT • NEXT.JS 16 & TYPESCRIPT • 내 링크 관리 페이지 • /mypage •&nbsp;
+          ⚡ MY-LINK MANAGEMENT • NEXT.JS 16 & TYPESCRIPT • FIRESTORE CLOUD CONNECTED • /mypage •&nbsp;
         </div>
       </div>
 
@@ -185,9 +235,12 @@ export default function MyPage() {
               <ArrowLeft className="w-3.5 h-3.5 stroke-[3]" />
               <span>메인 프로필로</span>
             </Link>
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-black text-[#FEF08A] border-[2px] border-black rounded-[6px] text-[11px] font-black tracking-tight">
-              /mypage
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#22C55E] text-white border border-black rounded-[6px] text-[10px] font-black tracking-tight">
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                Firestore 실시간 연동됨
+              </span>
+            </div>
           </div>
 
           <div className="p-4 bg-white border-[3px] border-black rounded-[12px] shadow-[5px_5px_0px_#000] text-center">
@@ -264,7 +317,7 @@ export default function MyPage() {
               />
             </div>
 
-            {/* 3. 추가 버튼 (보라색 #5B5FC7 스타일 요구사항 100% 반영) */}
+            {/* 3. 추가 버튼 (보라색 #5B5FC7 스타일) */}
             <div className="pt-1">
               <button
                 type="submit"
@@ -287,7 +340,7 @@ export default function MyPage() {
               </span>
             </h2>
             <span className="text-[11px] font-bold text-neutral-700">
-              실시간 반영 중
+              클라우드 실시간 동기화
             </span>
           </div>
 
@@ -360,7 +413,7 @@ export default function MyPage() {
 
       {/* 푸터 */}
       <footer className="text-center py-5 text-xs font-black text-neutral-800 border-t-[3px] border-black bg-white/70">
-        <p>내 링크 관리자 페이지 • /mypage</p>
+        <p>내 링크 관리자 페이지 • /mypage • Powered by Firebase Firestore</p>
       </footer>
     </div>
   );

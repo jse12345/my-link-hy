@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Heart, Settings } from "lucide-react";
+import { collection, onSnapshot, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
 import { Button } from "@/components/ui/button";
@@ -37,29 +39,48 @@ export default function ProfilePage() {
   const name = "정시은";
   const bio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
 
-  // 로컬스토리지 및 public/data/links.json 동기화
+  // 로컬스토리지 및 Firestore 실시간 동기화
   useEffect(() => {
+    // 1. 로컬스토리지 캐시 우선 로드
     const saved = localStorage.getItem("my-link-custom-links");
     if (saved) {
       try {
         setLinks(JSON.parse(saved));
-        return;
       } catch {
         // parsing error fallback
       }
     }
 
-    fetch("/data/links.json")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setLinks(data);
-          localStorage.setItem("my-link-custom-links", JSON.stringify(data));
+    // 2. 실시간 Firestore 클라우드 DB 연동
+    try {
+      const unsubscribe = onSnapshot(
+        collection(db, "links"),
+        (snapshot) => {
+          if (!snapshot.empty) {
+            const firestoreLinks: LinkItem[] = snapshot.docs.map((d) => ({
+              id: d.id,
+              ...(d.data() as Omit<LinkItem, "id">),
+            }));
+
+            // 기본 더미 데이터와 병합 (중복 URL 방지)
+            const combined = [
+              ...firestoreLinks,
+              ...DUMMY_LINKS.filter(
+                (dummy) => !firestoreLinks.some((fl) => fl.url === dummy.url)
+              ),
+            ];
+            setLinks(combined);
+            localStorage.setItem("my-link-custom-links", JSON.stringify(combined));
+          }
+        },
+        (err) => {
+          console.warn("Firestore 실시간 동기화 대기:", err.message);
         }
-      })
-      .catch(() => {
-        // DUMMY_LINKS 유지
-      });
+      );
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn("Firestore 연결 실패:", err);
+    }
   }, []);
 
   const saveLinks = (updatedLinks: LinkItem[]) => {
@@ -76,11 +97,29 @@ export default function ProfilePage() {
 
   const handleAddLink = (newLinkItem: LinkItem) => {
     saveLinks([newLinkItem, ...links]);
+    try {
+      addDoc(collection(db, "links"), {
+        title: newLinkItem.title,
+        subtitle: newLinkItem.subtitle || "새로 추가된 링크",
+        url: newLinkItem.url,
+        category: newLinkItem.category || "project",
+        tag: newLinkItem.tag || "NEW",
+        bgColor: newLinkItem.bgColor || "bg-white",
+        clickCount: 0,
+        isCustom: true,
+        createdAt: Date.now(),
+      }).catch((err) => console.warn("Firestore addDoc 오류:", err));
+    } catch (e) {
+      console.warn("Firestore 저장 건너뜀:", e);
+    }
   };
 
   const handleDeleteLink = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    try {
+      deleteDoc(doc(db, "links", id)).catch(() => {});
+    } catch {}
     saveLinks(links.filter((l) => l.id !== id));
   };
 
