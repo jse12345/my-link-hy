@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Heart, Settings, Trash2, AlertTriangle, X } from "lucide-react";
-import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { Plus, Heart, Settings, Trash2, AlertTriangle, X, Pencil, Check } from "lucide-react";
+import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
@@ -36,6 +36,9 @@ export default function ProfilePage() {
   const [links, setLinks] = useState<LinkItem[]>(DUMMY_LINKS);
   const [activeCategory, setActiveCategory] = useState<CategoryTabId>("all");
   const [deleteTarget, setDeleteTarget] = useState<LinkItem | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editUrl, setEditUrl] = useState("");
 
   const name = "정시은";
   const bio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
@@ -149,6 +152,69 @@ export default function ProfilePage() {
     setDeleteTarget(null);
   };
 
+  const handleStartEdit = (link: LinkItem) => {
+    setEditingId(link.id);
+    setEditTitle(link.title);
+    setEditUrl(link.url);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditTitle("");
+    setEditUrl("");
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    const trimmedTitle = editTitle.trim();
+    const trimmedUrl = editUrl.trim();
+
+    if (!trimmedTitle) {
+      alert("제목을 입력해주세요");
+      return;
+    }
+    if (!trimmedUrl || trimmedUrl === "https://" || trimmedUrl === "http://") {
+      alert("주소를 입력해주세요");
+      return;
+    }
+
+    let formattedUrl = trimmedUrl;
+    if (
+      !formattedUrl.startsWith("http://") &&
+      !formattedUrl.startsWith("https://") &&
+      !formattedUrl.startsWith("mailto:")
+    ) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    try {
+      if (!formattedUrl.startsWith("mailto:")) {
+        new URL(formattedUrl);
+      }
+    } catch {
+      alert("올바른 주소를 입력해주세요");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "users", "anonymous", "links", id), {
+        title: trimmedTitle,
+        url: formattedUrl,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn("Firestore updateDoc 오류:", err);
+    }
+
+    const updated = links.map((item) =>
+      item.id === id ? { ...item, title: trimmedTitle, url: formattedUrl } : item
+    );
+    saveLinks(updated);
+
+    setEditingId(null);
+    setEditTitle("");
+    setEditUrl("");
+  };
+
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -221,24 +287,87 @@ export default function ProfilePage() {
         />
 
         {/* 링크 카드 목록 */}
-        <div className="w-full space-y-3.5">
-          {filteredLinks.length === 0 ? (
-            <Card className="w-full p-8 text-center bg-white">
-              <p className="font-black text-sm text-neutral-600">
-                선택한 카테고리에 등록된 링크가 없습니다.
-              </p>
-            </Card>
-          ) : (
-            filteredLinks.map((link) => (
-              <LinkCard
-                key={link.id}
-                link={link}
-                onClick={handleLinkClick}
-                onDelete={handleDeleteLink}
-              />
-            ))
-          )}
-        </div>
+          <div className="w-full space-y-3.5">
+            {filteredLinks.length === 0 ? (
+              <Card className="w-full p-8 text-center bg-white">
+                <p className="font-black text-sm text-neutral-600">
+                  선택한 카테고리에 등록된 링크가 없습니다.
+                </p>
+              </Card>
+            ) : (
+              filteredLinks.map((link) =>
+                editingId === link.id ? (
+                  <div
+                    key={link.id}
+                    className="p-4 bg-[#FEF9C3] border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000] space-y-3 transition-all"
+                  >
+                    <div className="flex items-center justify-between pb-1.5 border-b-[2px] border-black/20">
+                      <span className="text-xs font-black flex items-center gap-1.5 text-black">
+                        <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>링크 인라인 수정</span>
+                      </span>
+                      <span className="text-[10px] font-black bg-black text-[#FEF08A] px-2 py-0.5 rounded-[4px]">
+                        수정 중
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="block text-[11px] font-black mb-1 text-neutral-900">
+                          링크 제목 *
+                        </label>
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          placeholder="수정할 제목 입력"
+                          className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-black mb-1 text-neutral-900">
+                          링크 주소 (URL) *
+                        </label>
+                        <input
+                          type="text"
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          placeholder="https://..."
+                          className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="py-1.5 px-3 bg-white hover:bg-neutral-100 border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveEdit(link.id)}
+                        className="py-1.5 px-3.5 bg-[#22C55E] hover:bg-[#16a34a] text-white border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center gap-1"
+                      >
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>저장</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <LinkCard
+                    key={link.id}
+                    link={link}
+                    onClick={handleLinkClick}
+                    onDelete={handleDeleteLink}
+                    onEdit={handleStartEdit}
+                  />
+                )
+              )
+            )}
+          </div>
       </main>
 
       {/* 새 링크 추가 모달 */}

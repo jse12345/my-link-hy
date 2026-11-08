@@ -12,6 +12,7 @@ import {
   FileText,
   Eye,
   Flame,
+  Pencil,
 } from "lucide-react";
 import type { LinkItem } from "@/data/links";
 import { Badge } from "@/components/ui/badge";
@@ -20,9 +21,10 @@ interface LinkCardProps {
   link: LinkItem;
   onClick: (id: string) => void;
   onDelete: (id: string, e: React.MouseEvent) => void;
+  onEdit?: (link: LinkItem, e: React.MouseEvent) => void;
 }
 
-export function LinkCard({ link, onClick, onDelete }: LinkCardProps) {
+export function LinkCard({ link, onClick, onDelete, onEdit }: LinkCardProps) {
   const getLinkIcon = () => {
     if (link.tag === "GITHUB" || link.url.includes("github.com")) {
       return <FolderGit2 className="w-5 h-5 text-black stroke-[2.5]" />;
@@ -102,17 +104,36 @@ export function LinkCard({ link, onClick, onDelete }: LinkCardProps) {
         </div>
       </div>
 
-      {/* 우측 액션 */}
+      {/* 우측 액션: 수정(파란색 ✏️), 삭제(빨간색 🗑️) - 항상 표시 */}
       <div className="flex items-center gap-1.5 shrink-0">
-        {link.isCustom && (
-          <button
-            onClick={(e) => onDelete(link.id, e)}
-            aria-label="링크 삭제"
-            className="w-8 h-8 rounded-[6px] bg-rose-100 hover:bg-rose-200 border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4 text-rose-600 stroke-[2.5]" />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("수정 버튼 클릭:", link.title);
+            onEdit?.(link, e);
+          }}
+          aria-label="링크 수정"
+          className="w-8 h-8 rounded-[6px] bg-blue-500 hover:bg-blue-600 text-white border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer shadow-[1px_1px_0px_#000]"
+        >
+          <Pencil className="w-4 h-4 stroke-[2.5]" />
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log("삭제 버튼 클릭:", link.title);
+            onDelete(link.id, e);
+          }}
+          aria-label="링크 삭제"
+          className="w-8 h-8 rounded-[6px] bg-rose-500 hover:bg-rose-600 text-white border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer shadow-[1px_1px_0px_#000]"
+        >
+          <Trash2 className="w-4 h-4 stroke-[2.5]" />
+        </button>
+
         <div className="w-8 h-8 rounded-[6px] bg-black text-white flex items-center justify-center group-hover:bg-neutral-800 transition-colors">
           <ArrowUpRight className="w-4 h-4 stroke-[3]" />
         </div>

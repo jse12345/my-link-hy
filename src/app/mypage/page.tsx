@@ -221,17 +221,19 @@ export default function MyPage() {
     const trimmedTitle = editTitle.trim();
     const trimmedUrl = editUrl.trim();
 
-    // 1. 빈 칸 검증
+    // 1. 빈 칸 검증 (추가할 때와 100% 동일한 메시지)
     if (!trimmedTitle) {
-      alert("수정할 제목을 입력해주세요");
+      alert("제목을 입력해주세요");
+      setErrorMessage("제목을 입력해주세요.");
       return;
     }
     if (!trimmedUrl || trimmedUrl === "https://" || trimmedUrl === "http://") {
-      alert("수정할 주소를 입력해주세요");
+      alert("주소를 입력해주세요");
+      setErrorMessage("주소를 입력해주세요.");
       return;
     }
 
-    // 2. URL 포맷팅 및 검증
+    // 2. URL 포맷팅 및 검증 (https:// 자동 부착)
     let formattedUrl = trimmedUrl;
     if (
       !formattedUrl.startsWith("http://") &&
@@ -247,6 +249,7 @@ export default function MyPage() {
       }
     } catch {
       alert("올바른 주소를 입력해주세요");
+      setErrorMessage("올바른 주소를 입력해주세요 (예: https://example.com)");
       return;
     }
 
@@ -577,7 +580,7 @@ export default function MyPage() {
                       </a>
                     </div>
 
-                    {/* 우측 버튼: 새창 열기, 수정(✏️), 삭제(🗑️) */}
+                    {/* 우측 버튼: 새창 열기, 수정(✏️ 파란색), 삭제(🗑️ 빨간색) - 항상 표시 */}
                     <div className="flex items-center gap-1.5 shrink-0">
                       <a
                         href={link.url}
@@ -588,19 +591,27 @@ export default function MyPage() {
                       >
                         <ExternalLink className="w-4 h-4 stroke-[2.5]" />
                       </a>
+                      {/* 수정 버튼: 파란색, 아이콘 ✏️, 클릭 시 콘솔 로그 */}
                       <button
                         type="button"
-                        onClick={() => handleStartEdit(link)}
+                        onClick={() => {
+                          console.log("수정 버튼 클릭:", link.title);
+                          handleStartEdit(link);
+                        }}
                         aria-label="링크 수정"
-                        className="w-8 h-8 rounded-[6px] bg-amber-100 hover:bg-amber-200 border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer text-amber-800 shadow-[1px_1px_0px_#000]"
+                        className="w-8 h-8 rounded-[6px] bg-blue-500 hover:bg-blue-600 text-white border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer shadow-[1px_1px_0px_#000]"
                       >
                         <Pencil className="w-4 h-4 stroke-[2.5]" />
                       </button>
+                      {/* 삭제 버튼: 빨간색, 아이콘 🗑️, 클릭 시 콘솔 로그 */}
                       <button
                         type="button"
-                        onClick={() => handleOpenDeleteModal(link)}
+                        onClick={() => {
+                          console.log("삭제 버튼 클릭:", link.title);
+                          handleOpenDeleteModal(link);
+                        }}
                         aria-label="링크 삭제"
-                        className="w-8 h-8 rounded-[6px] bg-rose-100 hover:bg-rose-200 border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer text-rose-600 shadow-[1px_1px_0px_#000]"
+                        className="w-8 h-8 rounded-[6px] bg-rose-500 hover:bg-rose-600 text-white border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer shadow-[1px_1px_0px_#000]"
                       >
                         <Trash2 className="w-4 h-4 stroke-[2.5]" />
                       </button>
@@ -616,8 +627,8 @@ export default function MyPage() {
       {/* ==========================================
           실습 2 (Delete): 삭제 확인 모달 다이얼로그
           - 제목: "정말 삭제하시겠습니까?"
-          - 내용: "[링크 이름]" 링크가 삭제됩니다
-          - 경고: "⚠️ 이 작업은 되돌릴 수 없습니다"
+          - 링크 이름 표시: "[링크 이름] 링크가 삭제됩니다"
+          - 경고: "이 작업은 되돌릴 수 없습니다" (빨간색)
           - 버튼: [취소] [삭제하기]
           ========================================== */}
       {deleteTarget && (
@@ -655,10 +666,10 @@ export default function MyPage() {
               </p>
             </div>
 
-            {/* 3. 경고: ⚠️ 이 작업은 되돌릴 수 없습니다 */}
-            <div className="p-3 bg-amber-50 border-[2px] border-amber-500 rounded-[8px] flex items-center gap-2 text-amber-900 text-xs font-black shadow-[2px_2px_0px_#000]">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 stroke-[2.5]" />
-              <span>⚠️ 이 작업은 되돌릴 수 없습니다</span>
+            {/* 3. 경고: "이 작업은 되돌릴 수 없습니다" (빨간색) */}
+            <div className="p-3 bg-rose-50 border-[2px] border-rose-500 rounded-[8px] flex items-center gap-2 text-rose-600 text-xs font-black shadow-[2px_2px_0px_#000]">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 stroke-[2.5]" />
+              <span className="font-black text-rose-600">이 작업은 되돌릴 수 없습니다</span>
             </div>
 
             {/* 4. 버튼: [취소] [삭제하기] */}
