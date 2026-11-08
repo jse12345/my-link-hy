@@ -236,7 +236,7 @@ export default function MyPage() {
               <input
                 id="link-title"
                 type="text"
-                placeholder="예: 내 기술 블로그"
+                placeholder="링크 제목 입력"
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
@@ -254,7 +254,7 @@ export default function MyPage() {
               <input
                 id="link-url"
                 type="text"
-                placeholder="https://example.com"
+                placeholder="https://..."
                 value={url}
                 onChange={(e) => {
                   setUrl(e.target.value);
