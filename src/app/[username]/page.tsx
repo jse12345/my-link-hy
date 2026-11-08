@@ -79,6 +79,7 @@ export default function UserProfilePage({
     `안녕하세요! ${rawUsername}의 마이링크 페이지입니다 ✨`
   );
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [userNotFound, setUserNotFound] = useState(false);
 
   // 현재 로그인한 사용자가 이 프로필의 주인인지 확인
   const isOwner = !!user && (user.uid === profileUid || user.email?.split("@")[0].toLowerCase() === rawUsername);
@@ -132,11 +133,17 @@ export default function UserProfilePage({
               );
             }
           }
-        } else if (rawUsername === "sieun" || rawUsername === "jse12345" || rawUsername === "정시은") {
+        } else if (rawUsername === "sieun" || rawUsername === "jse12345" || rawUsername === "used776655" || rawUsername === "정시은") {
           // 기본 프로필 폴백 (정시은 님 기본값)
           if (isMounted) {
+            setUserNotFound(false);
             setDisplayName("정시은");
             setBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨");
+          }
+        } else {
+          // 3차시 Slide 1 요구사항: username을 찾지 못하면 404 처리
+          if (isMounted) {
+            setUserNotFound(true);
           }
         }
       } catch (err) {
@@ -311,6 +318,47 @@ export default function UserProfilePage({
       return link.category === "social" || link.category === "contact";
     return true;
   });
+
+  // 3차시 요구사항: username을 찾지 못하면 404 페이지 표시
+  if (!loadingProfile && userNotFound) {
+    return (
+      <div
+        style={{ backgroundColor: "#FEF08A" }}
+        className="min-h-screen min-w-[360px] text-black flex flex-col justify-between selection:bg-black selection:text-[#FEF08A] font-sans"
+      >
+        <MarqueeTicker />
+        <Header user={user} onLogin={loginWithGoogle} onLogout={logout} />
+
+        <main className="w-full max-w-[420px] mx-auto flex flex-col items-center justify-center py-16 px-4 flex-1 text-center">
+          <div className="w-full bg-white border-[3px] border-black rounded-[14px] shadow-[6px_6px_0px_#000] p-8 space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-full bg-[#FEE2E2] border-[3px] border-black flex items-center justify-center text-3xl font-black shadow-[3px_3px_0px_#000]">
+              😢
+            </div>
+            <div className="inline-block px-3 py-1 bg-black text-[#FEF08A] font-black text-xs rounded border border-black font-mono">
+              404 NOT FOUND
+            </div>
+            <h1 className="text-xl font-black text-neutral-900">
+              사용자를 찾을 수 없습니다
+            </h1>
+            <p className="text-xs font-bold text-neutral-600 leading-relaxed">
+              <span className="font-mono font-black text-black bg-neutral-100 px-1.5 py-0.5 rounded border border-black/20">
+                /{rawUsername}
+              </span>{" "}
+              사용자는 아직 생성되지 않았거나 존재하지 않는 주소입니다.
+            </p>
+            <div className="pt-2">
+              <Link
+                href="/"
+                className="w-full py-3 px-4 bg-[#FEF08A] hover:bg-[#fde047] text-black border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] font-black text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <span>🏠 메인 대문으로 돌아가기</span>
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div

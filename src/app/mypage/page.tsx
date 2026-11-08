@@ -134,6 +134,18 @@ export default function MyPage() {
     setIsProfileSaving(true);
     try {
       const targetUid = currentUser.uid;
+
+      // 3차시 Step 1: username 중복 확인 (다른 사용자가 이미 사용 중인지 검사)
+      const existingUserMap = await getDoc(doc(db, "usernames", cleanUsername));
+      if (existingUserMap.exists()) {
+        const ownerUid = existingUserMap.data()?.uid;
+        if (ownerUid && ownerUid !== targetUid) {
+          alert(`⚠️ 이미 다른 사용자가 사용 중인 아이디(username: "${cleanUsername}")입니다.\n다른 username을 입력해주세요!`);
+          setIsProfileSaving(false);
+          return;
+        }
+      }
+
       const profileData = {
         username: cleanUsername,
         displayName: cleanName,
