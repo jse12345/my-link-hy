@@ -30,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 export default function MyPage() {
   const [links, setLinks] = useState<LinkItem[]>(DUMMY_LINKS);
   const [title, setTitle] = useState("");
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = useState("https://");
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isCloudConnected, setIsCloudConnected] = useState(false);
@@ -112,8 +112,8 @@ export default function MyPage() {
       return;
     }
 
-    // 검증 2: 주소 비어있으면 alert
-    if (!trimmedUrl) {
+    // 검증 2: 주소 비어있거나 접두사만 있으면 alert
+    if (!trimmedUrl || trimmedUrl === "https://" || trimmedUrl === "http://") {
       alert("주소를 입력해주세요");
       setErrorMessage("주소를 입력해주세요.");
       return;
@@ -179,9 +179,9 @@ export default function MyPage() {
 
     saveLinks([newLinkItem, ...links]);
 
-    // 입력 칸 자동 비우기
+    // 입력 칸 초기화 (주소는 편리하게 https:// 기본값 유지)
     setTitle("");
-    setUrl("");
+    setUrl("https://");
     setSuccessMessage("새 링크가 성공적으로 추가되었습니다! (클라우드 동기화 완료)");
     setTimeout(() => setSuccessMessage(""), 3000);
   };

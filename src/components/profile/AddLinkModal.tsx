@@ -12,7 +12,7 @@ interface AddLinkModalProps {
 export function AddLinkModal({ isOpen, onClose, onAdd }: AddLinkModalProps) {
   const [newTitle, setNewTitle] = useState("");
   const [newSubtitle, setNewSubtitle] = useState("");
-  const [newUrl, setNewUrl] = useState("");
+  const [newUrl, setNewUrl] = useState("https://");
   const [newTag, setNewTag] = useState("");
   const [newCategory, setNewCategory] = useState<"project" | "blog" | "social" | "study" | "contact">("project");
   const [newBgColor, setNewBgColor] = useState("bg-white");
@@ -21,7 +21,7 @@ export function AddLinkModal({ isOpen, onClose, onAdd }: AddLinkModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newUrl.trim()) return;
+    if (!newTitle.trim() || !newUrl.trim() || newUrl.trim() === "https://") return;
 
     let formattedUrl = newUrl.trim();
     if (
@@ -47,7 +47,7 @@ export function AddLinkModal({ isOpen, onClose, onAdd }: AddLinkModalProps) {
     onAdd(newLinkItem);
     setNewTitle("");
     setNewSubtitle("");
-    setNewUrl("");
+    setNewUrl("https://");
     setNewTag("");
     onClose();
   };
