@@ -2,11 +2,34 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Heart, Settings, Trash2, AlertTriangle, X, Pencil, Check, LogOut } from "lucide-react";
-import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from "firebase/firestore";
-import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
-import { db, auth, googleProvider } from "@/lib/firebase";
+import {
+  Plus,
+  Heart,
+  Settings,
+  Trash2,
+  AlertTriangle,
+  X,
+  Pencil,
+  Check,
+  Sparkles,
+  ShieldCheck,
+  Cloud,
+  ArrowRight,
+  ExternalLink,
+} from "lucide-react";
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { GoogleIcon } from "@/components/icons";
+import { Header } from "@/components/Header";
+import { useAuth } from "@/hooks/useAuth";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
 import { Button } from "@/components/ui/button";
@@ -31,6 +54,8 @@ const THEME_PALETTES: ThemePalette[] = [
 ];
 
 export default function ProfilePage() {
+  const { user, loading: authLoading, loginWithGoogle, loginWithTestUser, logout } = useAuth();
+
   const [copied, setCopied] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
@@ -42,44 +67,18 @@ export default function ProfilePage() {
   const [editTitle, setEditTitle] = useState("");
   const [editUrl, setEditUrl] = useState("");
 
-  // 11주차: 구글 소셜 로그인 상태
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-
-  // onAuthStateChanged 실시간 인증 상태 감지
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleGoogleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (err: any) {
-      if (err.code === "auth/popup-closed-by-user") return;
-      if (err.code === "auth/operation-not-allowed") {
-        alert("Firebase 콘솔에서 Google 로그인을 활성화해주세요!\n(Authentication -> Sign-in method -> Google 추가)");
-        return;
-      }
-      alert("로그인 중 오류가 발생했습니다: " + err.message);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (err: any) {
-      console.error("로그아웃 오류:", err);
-    }
-  };
-
-  const name = "정시은";
+  const name = user?.displayName || "정시은";
   const bio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
 
-  // 로컬스토리지 및 Firestore 실시간 동기화 (경로: users/{user.uid}/links)
+  // Firestore 실시간 동기화 (경로: users/{user.uid}/links)
   useEffect(() => {
-    const currentUid = currentUser?.uid || "anonymous";
+    if (!user) {
+      // 비로그인 상태일 때는 기본 데모 데이터 표시
+      setLinks(DUMMY_LINKS);
+      return;
+    }
+
+    const currentUid = user.uid;
     const cacheKey = `my-link-custom-links-${currentUid}`;
 
     // 1. 로컬스토리지 캐시 우선 로드
@@ -99,7 +98,9 @@ export default function ProfilePage() {
         (snapshot) => {
           const firestoreLinks: (LinkItem & { _time?: number })[] = snapshot.docs.map((d) => {
             const data = d.data();
-            const time = data.createdAt?.toMillis?.() ?? (typeof data.createdAt === "number" ? data.createdAt : Date.now());
+            const time =
+              data.createdAt?.toMillis?.() ??
+              (typeof data.createdAt === "number" ? data.createdAt : Date.now());
             return {
               id: d.id,
               title: data.title || "",
@@ -135,10 +136,10 @@ export default function ProfilePage() {
     } catch (err) {
       console.warn("Firestore 연결 실패:", err);
     }
-  }, [currentUser]);
+  }, [user]);
 
   const saveLinks = (updatedLinks: LinkItem[]) => {
-    const currentUid = currentUser?.uid || "anonymous";
+    const currentUid = user?.uid || "anonymous";
     const cacheKey = `my-link-custom-links-${currentUid}`;
     setLinks(updatedLinks);
     localStorage.setItem(cacheKey, JSON.stringify(updatedLinks));
@@ -152,14 +153,13 @@ export default function ProfilePage() {
   };
 
   const handleAddLink = (newLinkItem: LinkItem) => {
-    if (!currentUser) {
+    if (!user) {
       alert("링크를 추가하려면 먼저 Google 로그인이 필요합니다!");
       return;
     }
     saveLinks([newLinkItem, ...links]);
-    const targetUid = currentUser.uid;
     try {
-      addDoc(collection(db, "users", targetUid, "links"), {
+      addDoc(collection(db, "users", user.uid, "links"), {
         title: newLinkItem.title,
         url: newLinkItem.url,
         createdAt: serverTimestamp(),
@@ -179,7 +179,7 @@ export default function ProfilePage() {
   const handleDeleteLink = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!currentUser) {
+    if (!user) {
       alert("링크를 삭제하려면 먼저 Google 로그인이 필요합니다!");
       return;
     }
@@ -191,14 +191,13 @@ export default function ProfilePage() {
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    if (!currentUser) {
+    if (!user) {
       alert("로그인이 필요합니다. 먼저 Google로 로그인해주세요!");
       setDeleteTarget(null);
       return;
     }
-    const targetUid = currentUser.uid;
     try {
-      await deleteDoc(doc(db, "users", targetUid, "links", deleteTarget.id));
+      await deleteDoc(doc(db, "users", user.uid, "links", deleteTarget.id));
     } catch (err) {
       console.warn("Firestore deleteDoc 오류:", err);
     }
@@ -207,7 +206,7 @@ export default function ProfilePage() {
   };
 
   const handleStartEdit = (link: LinkItem) => {
-    if (!currentUser) {
+    if (!user) {
       alert("링크를 수정하려면 먼저 Google 로그인이 필요합니다!");
       return;
     }
@@ -223,7 +222,7 @@ export default function ProfilePage() {
   };
 
   const handleSaveEdit = async (id: string) => {
-    if (!currentUser) {
+    if (!user) {
       alert("수정하려면 먼저 Google 로그인이 필요합니다!");
       return;
     }
@@ -249,18 +248,13 @@ export default function ProfilePage() {
       formattedUrl = "https://" + formattedUrl;
     }
 
-    try {
-      if (!formattedUrl.startsWith("mailto:")) {
-        new URL(formattedUrl);
-      }
-    } catch {
-      alert("올바른 주소를 입력해주세요");
-      return;
-    }
+    const updated = links.map((l) =>
+      l.id === id ? { ...l, title: trimmedTitle, url: formattedUrl } : l
+    );
+    saveLinks(updated);
 
-    const targetUid = currentUser.uid;
     try {
-      await updateDoc(doc(db, "users", targetUid, "links", id), {
+      await updateDoc(doc(db, "users", user.uid, "links", id), {
         title: trimmedTitle,
         url: formattedUrl,
         updatedAt: serverTimestamp(),
@@ -269,22 +263,14 @@ export default function ProfilePage() {
       console.warn("Firestore updateDoc 오류:", err);
     }
 
-    const updated = links.map((item) =>
-      item.id === id ? { ...item, title: trimmedTitle, url: formattedUrl } : item
-    );
-    saveLinks(updated);
-
     setEditingId(null);
     setEditTitle("");
     setEditUrl("");
   };
 
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
+  const handleCopyLink = () => {
+    if (typeof window !== "undefined") {
+      navigator.clipboard.writeText(window.location.href);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -309,168 +295,263 @@ export default function ProfilePage() {
       {/* 1. 상단 롤링 마퀴 배너 (Neobrutalism 시그니처) */}
       <MarqueeTicker />
 
-      {/* 2. 중앙 메인 컨테이너 (모바일 360px 보장, 태블릿 80%/480px, 데스크탑 400px) */}
-      <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[480px] lg:w-[400px] mx-auto flex flex-col items-center py-6 px-4 flex-1">
-        {/* 11주차: 헤더 구글 로그인 / 사용자 표시 & 로그아웃 바 */}
-        <div className="w-full mb-3 px-1">
-          {currentUser ? (
-            <div className="w-full flex items-center justify-between p-2 bg-white border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000]">
-              <div className="flex items-center gap-2 truncate">
-                {currentUser.photoURL && (
-                  <img
-                    src={currentUser.photoURL}
-                    alt="프로필"
-                    className="w-5 h-5 rounded-full border border-black shrink-0"
-                  />
-                )}
-                <span className="text-xs font-black text-black truncate">
-                  {currentUser.displayName || "사용자"}님
+      {/* 2. 공통 헤더 (구글 로그인 / 사용자 프로필 / 로그아웃) */}
+      <Header
+        user={user}
+        onLogin={loginWithGoogle}
+        onLogout={logout}
+      />
+
+      {/* 3. 메인 콘텐츠 영역 (로그인 상태별 화면 분기 처리) */}
+      <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[520px] lg:w-[440px] mx-auto flex flex-col items-center py-6 px-4 flex-1">
+        {authLoading ? (
+          /* 인증 로딩 상태 */
+          <div className="w-full p-10 bg-white border-[3px] border-black rounded-[14px] shadow-[6px_6px_0px_#000] text-center my-8">
+            <div className="inline-block animate-spin w-8 h-8 border-[3px] border-black border-t-transparent rounded-full mb-3" />
+            <p className="text-sm font-black text-black">인증 상태 확인 중...</p>
+          </div>
+        ) : !user ? (
+          /* [분기 1: 비로그인 상태] 랜딩 설명 화면 */
+          <div className="w-full space-y-4 my-2">
+            {/* 랜딩 히어로 카드 */}
+            <div className="p-6 bg-white border-[3px] border-black rounded-[14px] shadow-[6px_6px_0px_#000] text-left space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 bg-black text-[#FEF08A] font-black text-[11px] rounded-[6px]">
+                  STEP 6
+                </span>
+                <span className="text-xs font-black text-neutral-800">
+                  Firebase 사용자 개인화 연동
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="px-2.5 py-1 bg-neutral-100 hover:bg-neutral-200 border-[1.5px] border-black rounded-[6px] text-xs font-black flex items-center gap-1 cursor-pointer shrink-0"
-              >
-                <LogOut className="w-3 h-3 stroke-[2.5]" />
-                <span>로그아웃</span>
-              </button>
+
+              <h2 className="text-xl md:text-2xl font-black text-black leading-tight tracking-tight">
+                로그인 후 나만의 <span className="bg-[#FEF08A] px-1 border border-black">마이링크</span>를
+                만들어보세요! ✨
+              </h2>
+
+              <p className="text-xs md:text-sm font-bold text-neutral-700 leading-relaxed">
+                현재 비로그인 상태입니다. Google 계정으로 로그인하시면 나만의
+                전용 Firestore 클라우드 경로(
+                <code className="bg-neutral-100 text-rose-600 px-1 py-0.5 rounded font-mono font-black border border-neutral-300">
+                  users/&#123;내UID&#125;/links
+                </code>
+                )가 자동 생성되어 링크를 안전하게 관리할 수 있습니다.
+              </p>
+
+              {/* 기능 안내 박스 */}
+              <div className="p-3.5 bg-[#FEF08A]/40 border-[2px] border-black rounded-[10px] space-y-2 text-xs">
+                <div className="font-black text-black flex items-center gap-1.5 pb-1 border-b border-black/20">
+                  <Sparkles className="w-4 h-4 text-amber-600 stroke-[2.5]" />
+                  <span>로그인 이후 이용 가능한 기능</span>
+                </div>
+                <ul className="space-y-1.5 font-bold text-neutral-800">
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-black font-black">1.</span>
+                    <span><strong>클라우드 실시간 저장:</strong> 어디서 접속해도 링크가 영구 보존됩니다.</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-black font-black">2.</span>
+                    <span><strong>CRUD 완전 지원:</strong> 새 링크 추가, ✏️ 인라인 수정, 🗑️ 안전 삭제</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="text-black font-black">3.</span>
+                    <span><strong>나만의 프로필:</strong> 구글 계정 이름과 프로필 사진 자동 적용</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* 로그인 액션 버튼들 */}
+              <div className="pt-2 space-y-2">
+                <button
+                  type="button"
+                  onClick={loginWithGoogle}
+                  className="w-full py-3 px-4 bg-[#4285F4] hover:bg-[#3367D6] text-white border-[3px] border-black rounded-[10px] shadow-[4px_4px_0px_#000] hover:shadow-[6px_6px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] font-black text-sm flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <GoogleIcon className="w-5 h-5 bg-white rounded-full p-0.5" />
+                  <span>Google 계정으로 시작하기</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => loginWithTestUser("정시은")}
+                  className="w-full py-2.5 px-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 border-[2px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>체험용 테스트 계정('정시은')으로 바로 둘러보기</span>
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className="w-full flex justify-end">
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-neutral-100 border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] text-xs font-black cursor-pointer transition-all"
-              >
-                <GoogleIcon className="w-3.5 h-3.5" />
-                <span>Google로 로그인</span>
-              </button>
-            </div>
-          )}
-        </div>
 
-        {/* 상단 컨트롤 바 */}
-        <ControlBar
-          palettes={THEME_PALETTES}
-          currentTheme={themeColor}
-          onSelectTheme={setThemeColor}
-          onOpenQr={() => setShowQrModal(true)}
-          onCopyLink={handleCopyLink}
-          copied={copied}
-        />
-
-        {/* 프로필 카드 섹션 */}
-        <ProfileHeader name={name} bio={bio} themeColor={themeColor} />
-
-        {/* 새 링크 직접 추가 버튼 & 마이페이지 링크 관리 */}
-        <div className="w-full mb-4 grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowAddModal(true)}
-            className="w-full py-5 font-black text-xs flex items-center justify-center gap-1.5"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>새 링크 추가</span>
-          </Button>
-          <Link
-            href="/mypage"
-            className="w-full py-2.5 px-3 bg-[#5B5FC7] hover:bg-[#4a4ea5] text-white border-[3px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] hover:shadow-[5px_5px_0px_#000] hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] font-black text-xs flex items-center justify-center gap-1.5 transition-all text-center justify-center"
-          >
-            <Settings className="w-4 h-4 stroke-[2.5]" />
-            <span>링크 관리 (/mypage)</span>
-          </Link>
-        </div>
-
-        {/* 카테고리 분류 탭 */}
-        <CategoryTabs
-          activeCategory={activeCategory}
-          onSelectCategory={setActiveCategory}
-          links={links}
-        />
-
-        {/* 링크 카드 목록 */}
-          <div className="w-full space-y-3.5">
-            {filteredLinks.length === 0 ? (
-              <Card className="w-full p-8 text-center bg-white">
-                <p className="font-black text-sm text-neutral-600">
-                  선택한 카테고리에 등록된 링크가 없습니다.
-                </p>
-              </Card>
-            ) : (
-              filteredLinks.map((link) =>
-                editingId === link.id ? (
+            {/* 비로그인 방문자를 위한 미리보기 샘플 카드 */}
+            <div className="pt-4 text-left">
+              <div className="flex items-center justify-between mb-2 px-1">
+                <span className="text-xs font-black text-neutral-800 flex items-center gap-1">
+                  <span>👀</span>
+                  <span>등록 예시 미리보기 (샘플 링크)</span>
+                </span>
+                <span className="text-[10px] font-black text-neutral-500">
+                  로그인 전 둘러보기 모드
+                </span>
+              </div>
+              <div className="space-y-2 opacity-85">
+                {DUMMY_LINKS.slice(0, 3).map((dummy) => (
                   <div
-                    key={link.id}
-                    className="p-4 bg-[#FEF9C3] border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000] space-y-3 transition-all"
+                    key={dummy.id}
+                    className="p-3 bg-white border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] flex items-center justify-between"
                   >
-                    <div className="flex items-center justify-between pb-1.5 border-b-[2px] border-black/20">
-                      <span className="text-xs font-black flex items-center gap-1.5 text-black">
-                        <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
-                        <span>링크 인라인 수정</span>
-                      </span>
-                      <span className="text-[10px] font-black bg-black text-[#FEF08A] px-2 py-0.5 rounded-[4px]">
-                        수정 중
-                      </span>
+                    <div>
+                      <h4 className="text-xs font-black text-black">{dummy.title}</h4>
+                      <p className="text-[11px] font-bold text-neutral-500 truncate max-w-[240px]">
+                        {dummy.url}
+                      </p>
                     </div>
-
-                    <div className="space-y-2.5">
-                      <div>
-                        <label className="block text-[11px] font-black mb-1 text-neutral-900">
-                          링크 제목 *
-                        </label>
-                        <input
-                          type="text"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          placeholder="수정할 제목 입력"
-                          className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-black mb-1 text-neutral-900">
-                          링크 주소 (URL) *
-                        </label>
-                        <input
-                          type="text"
-                          value={editUrl}
-                          onChange={(e) => setEditUrl(e.target.value)}
-                          placeholder="https://..."
-                          className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={handleCancelEdit}
-                        className="py-1.5 px-3 bg-white hover:bg-neutral-100 border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
-                      >
-                        취소
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSaveEdit(link.id)}
-                        className="py-1.5 px-3.5 bg-[#22C55E] hover:bg-[#16a34a] text-white border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center gap-1"
-                      >
-                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        <span>저장</span>
-                      </button>
-                    </div>
+                    <span className="text-[10px] font-black px-2 py-0.5 bg-neutral-100 border border-black rounded">
+                      미리보기
+                    </span>
                   </div>
-                ) : (
-                  <LinkCard
-                    key={link.id}
-                    link={link}
-                    onClick={handleLinkClick}
-                    onDelete={handleDeleteLink}
-                    onEdit={handleStartEdit}
-                  />
-                )
-              )
-            )}
+                ))}
+              </div>
+            </div>
           </div>
+        ) : (
+          /* [분기 2: 로그인 상태] 개인화 마이링크 대시보드 화면 */
+          <div className="w-full space-y-4">
+            {/* 개인화 상단 상태 바 */}
+            <div className="w-full p-2.5 bg-white border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 truncate">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 stroke-[2.5]" />
+                <span className="font-black text-black truncate">
+                  {user.displayName}님의 개인화 대시보드
+                </span>
+              </div>
+              <div className="px-2 py-0.5 bg-neutral-100 border border-black rounded font-mono text-[10px] font-black text-neutral-700 shrink-0">
+                users/{user.uid.slice(0, 8)}...
+              </div>
+            </div>
+
+            {/* 상단 컨트롤 바 (테마 변경, QR 모달, 링크 복사) */}
+            <ControlBar
+              palettes={THEME_PALETTES}
+              currentTheme={themeColor}
+              onSelectTheme={setThemeColor}
+              onOpenQr={() => setShowQrModal(true)}
+              onCopyLink={handleCopyLink}
+              copied={copied}
+            />
+
+            {/* 프로필 카드 섹션 */}
+            <ProfileHeader name={name} bio={bio} themeColor={themeColor} />
+
+            {/* 새 링크 직접 추가 버튼 & 마이페이지 링크 관리 */}
+            <div className="w-full grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowAddModal(true)}
+                className="w-full py-5 font-black text-xs flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span>새 링크 추가</span>
+              </Button>
+              <Link
+                href="/mypage"
+                className="w-full py-2.5 px-3 bg-[#5B5FC7] hover:bg-[#4a4ea5] text-white border-[3px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] hover:shadow-[5px_5px_0px_#000] hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] font-black text-xs flex items-center justify-center gap-1.5 transition-all text-center justify-center"
+              >
+                <Settings className="w-4 h-4 stroke-[2.5]" />
+                <span>링크 관리 (/mypage)</span>
+              </Link>
+            </div>
+
+            {/* 카테고리 분류 탭 */}
+            <CategoryTabs
+              activeCategory={activeCategory}
+              onSelectCategory={setActiveCategory}
+              links={links}
+            />
+
+            {/* 링크 카드 목록 */}
+            <div className="w-full space-y-3.5">
+              {filteredLinks.length === 0 ? (
+                <Card className="w-full p-8 text-center bg-white">
+                  <p className="font-black text-sm text-neutral-600">
+                    등록된 링크가 없습니다. 상단의 [+ 새 링크 추가]를 눌러보세요!
+                  </p>
+                </Card>
+              ) : (
+                filteredLinks.map((link) =>
+                  editingId === link.id ? (
+                    <div
+                      key={link.id}
+                      className="p-4 bg-[#FEF9C3] border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000] space-y-3 transition-all"
+                    >
+                      <div className="flex items-center justify-between pb-1.5 border-b-[2px] border-black/20">
+                        <span className="text-xs font-black flex items-center gap-1.5 text-black">
+                          <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
+                          <span>링크 인라인 수정</span>
+                        </span>
+                        <span className="text-[10px] font-black bg-black text-[#FEF08A] px-2 py-0.5 rounded-[4px]">
+                          수정 중
+                        </span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className="block text-[11px] font-black mb-1 text-neutral-900">
+                            링크 제목 *
+                          </label>
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            placeholder="수정할 제목 입력"
+                            className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-black mb-1 text-neutral-900">
+                            링크 주소 (URL) *
+                          </label>
+                          <input
+                            type="text"
+                            value={editUrl}
+                            onChange={(e) => setEditUrl(e.target.value)}
+                            placeholder="https://..."
+                            className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className="py-1.5 px-3 bg-white hover:bg-neutral-100 border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEdit(link.id)}
+                          className="py-1.5 px-3.5 bg-[#22C55E] hover:bg-[#16a34a] text-white border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center gap-1"
+                        >
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>저장</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <LinkCard
+                      key={link.id}
+                      link={link}
+                      onClick={handleLinkClick}
+                      onDelete={handleDeleteLink}
+                      onEdit={handleStartEdit}
+                    />
+                  )
+                )
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* 새 링크 추가 모달 */}

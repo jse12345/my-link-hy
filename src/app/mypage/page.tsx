@@ -26,9 +26,9 @@ import {
 } from "lucide-react";
 
 import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
-import { signInWithPopup, signOut, onAuthStateChanged, type User } from "firebase/auth";
-import { db, auth, googleProvider } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { GoogleIcon } from "@/components/icons";
+import { useAuth } from "@/hooks/useAuth";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
 import { Button } from "@/components/ui/button";
@@ -50,45 +50,8 @@ export default function MyPage() {
   // 실습 2 (Delete): 삭제 확인 모달 대상 링크
   const [deleteTarget, setDeleteTarget] = useState<LinkItem | null>(null);
 
-  // 11주차: 구글 소셜 로그인 상태
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-
-  // 5. onAuthStateChanged 로 인증 상태 실시간 감지
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
-      setIsAuthLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // 구글 팝업 로그인
-  const handleGoogleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-      setSuccessMessage("Google 계정으로 로그인되었습니다!");
-      setTimeout(() => setSuccessMessage(""), 3000);
-    } catch (err: any) {
-      if (err.code === "auth/popup-closed-by-user") return;
-      if (err.code === "auth/operation-not-allowed") {
-        alert("Firebase 콘솔에서 Google 로그인을 활성화해주세요!\n(Authentication -> Sign-in method -> Google 추가)");
-        return;
-      }
-      alert("로그인 중 오류가 발생했습니다: " + err.message);
-    }
-  };
-
-  // 로그아웃
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setSuccessMessage("로그아웃되었습니다.");
-      setTimeout(() => setSuccessMessage(""), 3000);
-    } catch (err: any) {
-      console.error("로그아웃 오류:", err);
-    }
-  };
+  // 11주차: 구글 소셜 로그인 상태 (useAuth)
+  const { user: currentUser, loginWithGoogle: handleGoogleLogin, logout: handleLogout } = useAuth();
 
   // 로컬스토리지 및 Firestore 실시간 동기화 (경로: users/{user.uid}/links)
   useEffect(() => {
