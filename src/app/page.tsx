@@ -204,7 +204,7 @@ export default function ProfilePage() {
   return (
     <div
       style={{ backgroundColor: themeColor }}
-      className="min-h-screen text-black flex flex-col justify-between selection:bg-black selection:text-[#FEF08A] transition-colors duration-300 font-sans relative overflow-x-hidden"
+      className="min-h-screen min-w-[360px] text-black flex flex-col justify-between selection:bg-black selection:text-[#FEF08A] transition-colors duration-300 font-sans relative overflow-x-auto"
     >
       {/* 상단 롤링 마퀴 띠 배너 (Neobrutalism 시그니처 롤링 티커) */}
       <div className="w-full bg-black text-[#FEF08A] py-2 border-b-[3px] border-black overflow-hidden whitespace-nowrap font-black text-xs tracking-wider select-none shadow-[0px_4px_0px_#000]">
@@ -216,8 +216,8 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 중앙 메인 컨테이너 (반응형: 모바일 100%, 태블릿 80% 최대 480px, 데스크탑 400px 고정, 최소 320px 방어) */}
-      <main className="w-full min-w-[320px] md:w-[80%] md:max-w-[480px] lg:w-[400px] mx-auto flex flex-col items-center py-8 px-4 flex-1">
+      {/* 중앙 메인 컨테이너 (표준 규격: 모바일 360px 고정/100%, 태블릿 80% 최대 480px, 데스크탑/노트북 400px 고정) */}
+      <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[480px] lg:w-[400px] mx-auto flex flex-col items-center py-8 px-4 flex-1">
         {/* 상단 컨트롤 바 */}
         <header className="w-full flex items-center justify-between mb-4 px-1">
           {/* 테마 컬러 팔레트 */}
@@ -324,20 +324,6 @@ export default function ProfilePage() {
                 rel="noopener noreferrer"
                 aria-label={social.label}
                 className={`p-2.5 rounded-[10px] ${social.bg} border-[2.5px] border-black shadow-[3px_3px_0px_#000] hover:shadow-[4px_4px_0px_#000] hover:-translate-y-0.5 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000] transition-all shrink-0`}
-              >
-                {social.icon}
-              </a>
-            ))}
-          </div>
-        </section>
-            {socialLinks.map((social) => (
-              <a
-                key={social.id}
-                href={social.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={social.label}
-                className={`p-2.5 rounded-[10px] ${social.bg} border-[2.5px] border-black shadow-[3px_3px_0px_#000] hover:shadow-[4px_4px_0px_#000] hover:-translate-y-0.5 active:translate-x-[1px] active:translate-y-[1px] active:shadow-[1px_1px_0px_#000] transition-all`}
               >
                 {social.icon}
               </a>
