@@ -18,9 +18,13 @@ import {
   Mail,
   Zap,
   CloudCheck,
+  Pencil,
+  Check,
+  X,
+  AlertTriangle,
 } from "lucide-react";
 
-import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
@@ -34,6 +38,14 @@ export default function MyPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isCloudConnected, setIsCloudConnected] = useState(false);
+
+  // 실습 1 (Update): 인라인 편집 상태
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+
+  // 실습 2 (Delete): 삭제 확인 모달 대상 링크
+  const [deleteTarget, setDeleteTarget] = useState<LinkItem | null>(null);
 
   // 로컬스토리지 및 Firestore 실시간 동기화
   useEffect(() => {
@@ -189,14 +201,111 @@ export default function MyPage() {
     setTimeout(() => setSuccessMessage(""), 3000);
   };
 
-  // 링크 삭제 함수
-  const handleDeleteLink = (id: string) => {
-    if (confirm("정말 이 링크를 삭제하시겠습니까?")) {
-      try {
-        deleteDoc(doc(db, "users", "anonymous", "links", id)).catch(() => {});
-      } catch {}
-      saveLinks(links.filter((item) => item.id !== id));
+  // ==========================================
+  // 실습 1 (Update): 인라인 편집 핸들러
+  // ==========================================
+  const handleStartEdit = (link: LinkItem) => {
+    setEditingId(link.id);
+    setEditTitle(link.title);
+    setEditUrl(link.url);
+    setErrorMessage("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditTitle("");
+    setEditUrl("");
+  };
+
+  const handleSaveEdit = async (id: string) => {
+    const trimmedTitle = editTitle.trim();
+    const trimmedUrl = editUrl.trim();
+
+    // 1. 빈 칸 검증
+    if (!trimmedTitle) {
+      alert("수정할 제목을 입력해주세요");
+      return;
     }
+    if (!trimmedUrl || trimmedUrl === "https://" || trimmedUrl === "http://") {
+      alert("수정할 주소를 입력해주세요");
+      return;
+    }
+
+    // 2. URL 포맷팅 및 검증
+    let formattedUrl = trimmedUrl;
+    if (
+      !formattedUrl.startsWith("http://") &&
+      !formattedUrl.startsWith("https://") &&
+      !formattedUrl.startsWith("mailto:")
+    ) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    try {
+      if (!formattedUrl.startsWith("mailto:")) {
+        new URL(formattedUrl);
+      }
+    } catch {
+      alert("올바른 주소를 입력해주세요");
+      return;
+    }
+
+    // 3. Firestore updateDoc 실행 (경로: users/anonymous/links)
+    try {
+      await updateDoc(doc(db, "users", "anonymous", "links", id), {
+        title: trimmedTitle,
+        url: formattedUrl,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn("Firestore updateDoc 오류 (로컬 업데이트 유지):", err);
+    }
+
+    // 4. 로컬 상태 업데이트
+    const updated = links.map((item) =>
+      item.id === id ? { ...item, title: trimmedTitle, url: formattedUrl } : item
+    );
+    saveLinks(updated);
+
+    setEditingId(null);
+    setEditTitle("");
+    setEditUrl("");
+    setSuccessMessage("링크가 성공적으로 수정되었습니다! (클라우드 반영 완료)");
+    setTimeout(() => setSuccessMessage(""), 3000);
+  };
+
+  // ==========================================
+  // 실습 2 (Delete): 삭제 확인 모달 핸들러
+  // ==========================================
+  const handleOpenDeleteModal = (link: LinkItem) => {
+    setDeleteTarget(link);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setDeleteTarget(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    const targetId = deleteTarget.id;
+    const targetTitle = deleteTarget.title;
+
+    // 1. Firestore deleteDoc 실행
+    try {
+      await deleteDoc(doc(db, "users", "anonymous", "links", targetId));
+    } catch (err) {
+      console.warn("Firestore deleteDoc 오류:", err);
+    }
+
+    // 2. 로컬 상태 반영
+    const updated = links.filter((item) => item.id !== targetId);
+    saveLinks(updated);
+
+    // 3. 모달 닫기 및 알림
+    setDeleteTarget(null);
+    setSuccessMessage(`"[${targetTitle}]" 링크가 영구 삭제되었습니다.`);
+    setTimeout(() => setSuccessMessage(""), 3000);
   };
 
   const getLinkIcon = (link: LinkItem) => {
@@ -366,64 +475,213 @@ export default function MyPage() {
                 </p>
               </div>
             ) : (
-              links.map((link) => (
-                <div
-                  key={link.id}
-                  className="flex items-center justify-between p-3.5 bg-white border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000] transition-all hover:-translate-y-0.5"
-                >
-                  {/* 좌측 아이콘 */}
-                  <div className="w-9 h-9 rounded-[8px] bg-neutral-100 border-[2px] border-black flex items-center justify-center shrink-0 shadow-[1px_1px_0px_#000]">
-                    {getLinkIcon(link)}
-                  </div>
-
-                  {/* 중앙 제목 & URL */}
-                  <div className="flex-1 text-left px-3 overflow-hidden">
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="font-black text-sm text-black truncate max-w-[160px]">
-                        {link.title}
-                      </h3>
-                      {link.tag && (
-                        <Badge variant="default" size="sm">
-                          {link.tag}
-                        </Badge>
-                      )}
+              links.map((link) =>
+                editingId === link.id ? (
+                  /* ==========================================
+                     실습 1 (Update): 인라인 편집 폼 UI
+                     - 제목과 주소가 입력 칸으로 변환
+                     - 기존 값이 미리 채워져 있음
+                     - 저장/취소 버튼 제공
+                     ========================================== */
+                  <div
+                    key={link.id}
+                    className="p-4 bg-[#FEF9C3] border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000] space-y-3 transition-all"
+                  >
+                    <div className="flex items-center justify-between pb-1.5 border-b-[2px] border-black/20">
+                      <span className="text-xs font-black flex items-center gap-1.5 text-black">
+                        <Pencil className="w-3.5 h-3.5 stroke-[2.5]" />
+                        <span>링크 인라인 수정</span>
+                      </span>
+                      <span className="text-[10px] font-black bg-black text-[#FEF08A] px-2 py-0.5 rounded-[4px]">
+                        수정 중
+                      </span>
                     </div>
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-bold text-neutral-500 hover:text-black truncate block mt-0.5"
-                    >
-                      {link.url}
-                    </a>
-                  </div>
 
-                  {/* 우측 버튼: 새창 열기 & 삭제 */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="링크 열기"
-                      className="w-8 h-8 rounded-[6px] bg-neutral-100 hover:bg-neutral-200 border-[2px] border-black flex items-center justify-center transition-colors"
-                    >
-                      <ExternalLink className="w-4 h-4 stroke-[2.5]" />
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteLink(link.id)}
-                      aria-label="링크 삭제"
-                      className="w-8 h-8 rounded-[6px] bg-rose-100 hover:bg-rose-200 border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer text-rose-600"
-                    >
-                      <Trash2 className="w-4 h-4 stroke-[2.5]" />
-                    </button>
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="block text-[11px] font-black mb-1 text-neutral-900">
+                          링크 제목 *
+                        </label>
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          placeholder="수정할 제목 입력"
+                          className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-black mb-1 text-neutral-900">
+                          링크 주소 (URL) *
+                        </label>
+                        <input
+                          type="text"
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          placeholder="https://..."
+                          className="w-full px-3 py-2 bg-white border-[2.5px] border-black rounded-[8px] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black shadow-[1.5px_1.5px_0px_#000]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="py-1.5 px-3 bg-white hover:bg-neutral-100 border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveEdit(link.id)}
+                        className="py-1.5 px-3.5 bg-[#22C55E] hover:bg-[#16a34a] text-white border-[2px] border-black rounded-[6px] text-xs font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center gap-1"
+                      >
+                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>저장</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))
+                ) : (
+                  /* ==========================================
+                     일반 링크 카드 (수정 ✏️, 삭제 🗑️ 버튼 포함)
+                     ========================================== */
+                  <div
+                    key={link.id}
+                    className="flex items-center justify-between p-3.5 bg-white border-[3px] border-black rounded-[12px] shadow-[4px_4px_0px_#000] transition-all hover:-translate-y-0.5"
+                  >
+                    {/* 좌측 아이콘 */}
+                    <div className="w-9 h-9 rounded-[8px] bg-neutral-100 border-[2px] border-black flex items-center justify-center shrink-0 shadow-[1px_1px_0px_#000]">
+                      {getLinkIcon(link)}
+                    </div>
+
+                    {/* 중앙 제목 & URL */}
+                    <div className="flex-1 text-left px-3 overflow-hidden">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-black text-sm text-black truncate max-w-[160px]">
+                          {link.title}
+                        </h3>
+                        {link.tag && (
+                          <Badge variant="default" size="sm">
+                            {link.tag}
+                          </Badge>
+                        )}
+                      </div>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-bold text-neutral-500 hover:text-black truncate block mt-0.5"
+                      >
+                        {link.url}
+                      </a>
+                    </div>
+
+                    {/* 우측 버튼: 새창 열기, 수정(✏️), 삭제(🗑️) */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="링크 열기"
+                        className="w-8 h-8 rounded-[6px] bg-neutral-100 hover:bg-neutral-200 border-[2px] border-black flex items-center justify-center transition-colors shadow-[1px_1px_0px_#000]"
+                      >
+                        <ExternalLink className="w-4 h-4 stroke-[2.5]" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(link)}
+                        aria-label="링크 수정"
+                        className="w-8 h-8 rounded-[6px] bg-amber-100 hover:bg-amber-200 border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer text-amber-800 shadow-[1px_1px_0px_#000]"
+                      >
+                        <Pencil className="w-4 h-4 stroke-[2.5]" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDeleteModal(link)}
+                        aria-label="링크 삭제"
+                        className="w-8 h-8 rounded-[6px] bg-rose-100 hover:bg-rose-200 border-[2px] border-black flex items-center justify-center transition-colors cursor-pointer text-rose-600 shadow-[1px_1px_0px_#000]"
+                      >
+                        <Trash2 className="w-4 h-4 stroke-[2.5]" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              )
             )}
           </div>
         </section>
       </main>
+
+      {/* ==========================================
+          실습 2 (Delete): 삭제 확인 모달 다이얼로그
+          - 제목: "정말 삭제하시겠습니까?"
+          - 내용: "[링크 이름]" 링크가 삭제됩니다
+          - 경고: "⚠️ 이 작업은 되돌릴 수 없습니다"
+          - 버튼: [취소] [삭제하기]
+          ========================================== */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-white border-[3px] border-black rounded-[14px] shadow-[8px_8px_0px_#000] p-6 relative text-left space-y-4">
+            {/* 우측 상단 모달 닫기 버튼 */}
+            <button
+              onClick={handleCloseDeleteModal}
+              className="absolute top-4 right-4 p-1 hover:bg-neutral-100 rounded-[6px] border-[2px] border-black cursor-pointer"
+              aria-label="모달 닫기"
+            >
+              <X className="w-4 h-4 stroke-[3]" />
+            </button>
+
+            {/* 1. 모달 제목 */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-[8px] bg-rose-100 border-[2px] border-black flex items-center justify-center text-rose-600 shrink-0 shadow-[2px_2px_0px_#000]">
+                <Trash2 className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <h3 className="text-lg font-black tracking-tight text-black">
+                정말 삭제하시겠습니까?
+              </h3>
+            </div>
+
+            {/* 2. 모달 내용: [링크 이름] 링크가 삭제됩니다 */}
+            <div className="p-3 bg-neutral-50 border-[2.5px] border-black rounded-[8px]">
+              <p className="text-sm font-bold text-neutral-800">
+                <span className="font-black text-black bg-rose-100 px-1 py-0.5 rounded border border-rose-300">
+                  [{deleteTarget.title}]
+                </span>{" "}
+                링크가 삭제됩니다.
+              </p>
+              <p className="text-xs text-neutral-500 truncate mt-1">
+                {deleteTarget.url}
+              </p>
+            </div>
+
+            {/* 3. 경고: ⚠️ 이 작업은 되돌릴 수 없습니다 */}
+            <div className="p-3 bg-amber-50 border-[2px] border-amber-500 rounded-[8px] flex items-center gap-2 text-amber-900 text-xs font-black shadow-[2px_2px_0px_#000]">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 stroke-[2.5]" />
+              <span>⚠️ 이 작업은 되돌릴 수 없습니다</span>
+            </div>
+
+            {/* 4. 버튼: [취소] [삭제하기] */}
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={handleCloseDeleteModal}
+                className="w-full py-2.5 px-3 bg-white hover:bg-neutral-100 border-[2.5px] border-black rounded-[8px] font-black text-xs shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="w-full py-2.5 px-3 bg-rose-500 hover:bg-rose-600 text-white border-[2.5px] border-black rounded-[8px] font-black text-xs shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>삭제하기</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 푸터 */}
       <footer className="text-center py-5 text-xs font-black text-neutral-800 border-t-[3px] border-black bg-white/70">

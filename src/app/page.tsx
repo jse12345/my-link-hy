@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Heart, Settings } from "lucide-react";
+import { Plus, Heart, Settings, Trash2, AlertTriangle, X } from "lucide-react";
 import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -35,6 +35,7 @@ export default function ProfilePage() {
   const [themeColor, setThemeColor] = useState("#FEF08A");
   const [links, setLinks] = useState<LinkItem[]>(DUMMY_LINKS);
   const [activeCategory, setActiveCategory] = useState<CategoryTabId>("all");
+  const [deleteTarget, setDeleteTarget] = useState<LinkItem | null>(null);
 
   const name = "정시은";
   const bio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
@@ -131,10 +132,21 @@ export default function ProfilePage() {
   const handleDeleteLink = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    const target = links.find((l) => l.id === id);
+    if (target) {
+      setDeleteTarget(target);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      deleteDoc(doc(db, "users", "anonymous", "links", id)).catch(() => {});
-    } catch {}
-    saveLinks(links.filter((l) => l.id !== id));
+      await deleteDoc(doc(db, "users", "anonymous", "links", deleteTarget.id));
+    } catch (err) {
+      console.warn("Firestore deleteDoc 오류:", err);
+    }
+    saveLinks(links.filter((l) => l.id !== deleteTarget.id));
+    setDeleteTarget(null);
   };
 
   const handleCopyLink = async () => {
@@ -238,6 +250,65 @@ export default function ProfilePage() {
 
       {/* QR 코드 모달 */}
       <QrModal isOpen={showQrModal} onClose={() => setShowQrModal(false)} />
+
+      {/* 실습 2 (Delete): 삭제 확인 모달 다이얼로그 */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="w-full max-w-sm bg-white border-[3px] border-black rounded-[14px] shadow-[8px_8px_0px_#000] p-6 relative text-left space-y-4">
+            <button
+              onClick={() => setDeleteTarget(null)}
+              className="absolute top-4 right-4 p-1 hover:bg-neutral-100 rounded-[6px] border-[2px] border-black cursor-pointer"
+              aria-label="모달 닫기"
+            >
+              <X className="w-4 h-4 stroke-[3]" />
+            </button>
+
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-[8px] bg-rose-100 border-[2px] border-black flex items-center justify-center text-rose-600 shrink-0 shadow-[2px_2px_0px_#000]">
+                <Trash2 className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <h3 className="text-lg font-black tracking-tight text-black">
+                정말 삭제하시겠습니까?
+              </h3>
+            </div>
+
+            <div className="p-3 bg-neutral-50 border-[2.5px] border-black rounded-[8px]">
+              <p className="text-sm font-bold text-neutral-800">
+                <span className="font-black text-black bg-rose-100 px-1 py-0.5 rounded border border-rose-300">
+                  [{deleteTarget.title}]
+                </span>{" "}
+                링크가 삭제됩니다.
+              </p>
+              <p className="text-xs text-neutral-500 truncate mt-1">
+                {deleteTarget.url}
+              </p>
+            </div>
+
+            <div className="p-3 bg-amber-50 border-[2px] border-amber-500 rounded-[8px] flex items-center gap-2 text-amber-900 text-xs font-black shadow-[2px_2px_0px_#000]">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 stroke-[2.5]" />
+              <span>⚠️ 이 작업은 되돌릴 수 없습니다</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="w-full py-2.5 px-3 bg-white hover:bg-neutral-100 border-[2.5px] border-black rounded-[8px] font-black text-xs shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="w-full py-2.5 px-3 bg-rose-500 hover:bg-rose-600 text-white border-[2.5px] border-black rounded-[8px] font-black text-xs shadow-[3px_3px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>삭제하기</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 푸터 */}
       <footer className="text-center py-6 text-xs font-black text-neutral-800 border-t-[3px] border-black bg-white/70">
