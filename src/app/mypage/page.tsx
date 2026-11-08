@@ -387,16 +387,6 @@ export default function MyPage() {
     setTimeout(() => setSuccessMessage(""), 3000);
   };
 
-    // 2. 로컬 상태 반영
-    const updated = links.filter((item) => item.id !== targetId);
-    saveLinks(updated);
-
-    // 3. 모달 닫기 및 알림
-    setDeleteTarget(null);
-    setSuccessMessage(`"[${targetTitle}]" 링크가 영구 삭제되었습니다.`);
-    setTimeout(() => setSuccessMessage(""), 3000);
-  };
-
   const getLinkIcon = (link: LinkItem) => {
     if (link.tag === "GITHUB" || link.url.includes("github.com")) {
       return <FolderGit2 className="w-4 h-4 text-black stroke-[2.5]" />;
