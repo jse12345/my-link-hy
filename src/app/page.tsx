@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Heart, Settings } from "lucide-react";
-import { collection, onSnapshot, addDoc, deleteDoc, doc } from "firebase/firestore";
+import { collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
@@ -51,16 +51,26 @@ export default function ProfilePage() {
       }
     }
 
-    // 2. 실시간 Firestore 클라우드 DB 연동
+    // 2. 실시간 Firestore 클라우드 DB 연동 (경로: users/anonymous/links)
     try {
       const unsubscribe = onSnapshot(
-        collection(db, "links"),
+        collection(db, "users", "anonymous", "links"),
         (snapshot) => {
           if (!snapshot.empty) {
-            const firestoreLinks: LinkItem[] = snapshot.docs.map((d) => ({
-              id: d.id,
-              ...(d.data() as Omit<LinkItem, "id">),
-            }));
+            const firestoreLinks: LinkItem[] = snapshot.docs.map((d) => {
+              const data = d.data();
+              return {
+                id: d.id,
+                title: data.title || "",
+                subtitle: data.subtitle || "새로 추가된 링크",
+                url: data.url || "",
+                category: data.category || "project",
+                tag: data.tag || "NEW",
+                bgColor: data.bgColor || "bg-white",
+                clickCount: data.clickCount || 0,
+                isCustom: true,
+              };
+            });
 
             // 기본 더미 데이터와 병합 (중복 URL 방지)
             const combined = [
@@ -98,16 +108,17 @@ export default function ProfilePage() {
   const handleAddLink = (newLinkItem: LinkItem) => {
     saveLinks([newLinkItem, ...links]);
     try {
-      addDoc(collection(db, "links"), {
+      addDoc(collection(db, "users", "anonymous", "links"), {
         title: newLinkItem.title,
-        subtitle: newLinkItem.subtitle || "새로 추가된 링크",
         url: newLinkItem.url,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        subtitle: newLinkItem.subtitle || "새로 추가된 링크",
         category: newLinkItem.category || "project",
         tag: newLinkItem.tag || "NEW",
         bgColor: newLinkItem.bgColor || "bg-white",
         clickCount: 0,
         isCustom: true,
-        createdAt: Date.now(),
       }).catch((err) => console.warn("Firestore addDoc 오류:", err));
     } catch (e) {
       console.warn("Firestore 저장 건너뜀:", e);
@@ -118,7 +129,7 @@ export default function ProfilePage() {
     e.preventDefault();
     e.stopPropagation();
     try {
-      deleteDoc(doc(db, "links", id)).catch(() => {});
+      deleteDoc(doc(db, "users", "anonymous", "links", id)).catch(() => {});
     } catch {}
     saveLinks(links.filter((l) => l.id !== id));
   };

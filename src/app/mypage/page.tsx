@@ -20,7 +20,7 @@ import {
   CloudCheck,
 } from "lucide-react";
 
-import { collection, addDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
@@ -47,17 +47,27 @@ export default function MyPage() {
       }
     }
 
-    // 2. 실시간 Firestore 클라우드 DB 연동
+    // 2. 실시간 Firestore 클라우드 DB 연동 (경로: users/anonymous/links)
     try {
       const unsubscribe = onSnapshot(
-        collection(db, "links"),
+        collection(db, "users", "anonymous", "links"),
         (snapshot) => {
           setIsCloudConnected(true);
           if (!snapshot.empty) {
-            const firestoreLinks: LinkItem[] = snapshot.docs.map((d) => ({
-              id: d.id,
-              ...(d.data() as Omit<LinkItem, "id">),
-            }));
+            const firestoreLinks: LinkItem[] = snapshot.docs.map((d) => {
+              const data = d.data();
+              return {
+                id: d.id,
+                title: data.title || "",
+                subtitle: data.subtitle || "마이페이지에서 등록된 링크",
+                url: data.url || "",
+                category: data.category || "project",
+                tag: data.tag || "MY",
+                bgColor: data.bgColor || "bg-white",
+                clickCount: data.clickCount || 0,
+                isCustom: true,
+              };
+            });
 
             // 기본 더미 데이터와 클라우드 데이터 병합
             const combined = [
@@ -143,18 +153,19 @@ export default function MyPage() {
       isCustom: true,
     };
 
-    // Firestore에 저장 시도
+    // Firestore에 저장 시도 (경로: users/anonymous/links)
     try {
-      addDoc(collection(db, "links"), {
+      addDoc(collection(db, "users", "anonymous", "links"), {
         title: newLinkItem.title,
-        subtitle: newLinkItem.subtitle,
         url: newLinkItem.url,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        subtitle: newLinkItem.subtitle,
         category: newLinkItem.category,
         tag: newLinkItem.tag,
         bgColor: newLinkItem.bgColor,
         clickCount: 0,
         isCustom: true,
-        createdAt: Date.now(),
       })
         .then((docRef) => {
           newLinkItem.id = docRef.id;
@@ -179,7 +190,7 @@ export default function MyPage() {
   const handleDeleteLink = (id: string) => {
     if (confirm("정말 이 링크를 삭제하시겠습니까?")) {
       try {
-        deleteDoc(doc(db, "links", id)).catch(() => {});
+        deleteDoc(doc(db, "users", "anonymous", "links", id)).catch(() => {});
       } catch {}
       saveLinks(links.filter((item) => item.id !== id));
     }
