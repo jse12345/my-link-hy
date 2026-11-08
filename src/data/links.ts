@@ -3,7 +3,7 @@ export interface LinkItem {
   title: string;
   subtitle: string;
   url: string;
-  category: "project" | "blog" | "social" | "study" | "contact";
+  category?: "project" | "blog" | "social" | "study" | "contact";
   tag?: string;
   bgColor: string;
   clickCount?: number;
