@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Heart } from "lucide-react";
+import Link from "next/link";
+import { Plus, Heart, Settings } from "lucide-react";
 
 import { DUMMY_LINKS, type LinkItem } from "@/data/links";
 import { Button } from "@/components/ui/button";
@@ -128,16 +129,23 @@ export default function ProfilePage() {
         {/* 프로필 카드 섹션 */}
         <ProfileHeader name={name} bio={bio} themeColor={themeColor} />
 
-        {/* 새 링크 직접 추가 버튼 */}
-        <div className="w-full mb-4">
+        {/* 새 링크 직접 추가 버튼 & 마이페이지 링크 관리 */}
+        <div className="w-full mb-4 grid grid-cols-2 gap-2">
           <Button
             variant="outline"
             onClick={() => setShowAddModal(true)}
-            className="w-full py-6 font-black text-sm flex items-center justify-center gap-2"
+            className="w-full py-5 font-black text-xs flex items-center justify-center gap-1.5"
           >
-            <Plus className="w-5 h-5 stroke-[3]" />
-            <span>새 링크 직접 추가하기</span>
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>새 링크 추가</span>
           </Button>
+          <Link
+            href="/mypage"
+            className="w-full py-2.5 px-3 bg-[#5B5FC7] hover:bg-[#4a4ea5] text-white border-[3px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] hover:shadow-[5px_5px_0px_#000] hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] font-black text-xs flex items-center justify-center gap-1.5 transition-all text-center justify-center"
+          >
+            <Settings className="w-4 h-4 stroke-[2.5]" />
+            <span>링크 관리 (/mypage)</span>
+          </Link>
         </div>
 
         {/* 카테고리 분류 탭 */}
