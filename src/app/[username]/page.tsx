@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   Plus,
   Heart,
@@ -24,6 +25,9 @@ import {
   deleteDoc,
   serverTimestamp,
   updateDoc,
+  query,
+  where,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Header } from "@/components/Header";
@@ -51,13 +55,10 @@ const THEME_PALETTES: ThemePalette[] = [
   { id: "lavender", name: "드림 라벤더", bg: "bg-[#DDD6FE]", code: "#DDD6FE" },
 ];
 
-export default function UserProfilePage({
-  params,
-}: {
-  params: Promise<{ username: string }>;
-}) {
-  const resolvedParams = use(params);
-  const rawUsername = decodeURIComponent(resolvedParams.username || "").toLowerCase();
+function UserProfileContent() {
+  const routeParams = useParams();
+  const rawParam = typeof routeParams?.username === "string" ? routeParams.username : "";
+  const rawUsername = decodeURIComponent(rawParam).toLowerCase();
 
   const { user, loading: authLoading, loginWithGoogle, logout } = useAuth();
 
@@ -107,31 +108,79 @@ export default function UserProfilePage({
       }
 
       try {
+        let foundUid: string | null = null;
+        let foundName = rawUsername;
+        let foundBio = "";
+
         // 1) usernames/{username} 매핑 문서 조회
         const userMapSnap = await getDoc(doc(db, "usernames", rawUsername));
         if (userMapSnap.exists()) {
-          const mappedData = userMapSnap.data();
-          const targetUid = mappedData.uid;
-          if (isMounted) setProfileUid(targetUid);
+          foundUid = userMapSnap.data().uid;
+          foundName = userMapSnap.data().displayName || rawUsername;
+        }
 
-          // 2) users/{targetUid}/profile/info 문서 조회
-          const profileSnap = await getDoc(
-            doc(db, "users", targetUid, "profile", "info")
-          );
+        // 2) Step 2 슬라이드 명세: username으로 userId 검색 (where 쿼리)
+        if (!foundUid) {
+          const qUsername = query(collection(db, "users"), where("username", "==", rawUsername));
+          const qSnap = await getDocs(qUsername);
+          if (!qSnap.empty) {
+            foundUid = qSnap.docs[0].id;
+            const uData = qSnap.docs[0].data();
+            foundName = uData.displayName || uData.username || rawUsername;
+            foundBio = uData.bio || "";
+          }
+        }
+
+        // 3) profile.username where 쿼리 검색
+        if (!foundUid) {
+          const qProfUsername = query(collection(db, "users"), where("profile.username", "==", rawUsername));
+          const qSnap2 = await getDocs(qProfUsername);
+          if (!qSnap2.empty) {
+            foundUid = qSnap2.docs[0].id;
+            const uData = qSnap2.docs[0].data();
+            foundName = uData.displayName || uData.profile?.displayName || rawUsername;
+            foundBio = uData.bio || uData.profile?.bio || "";
+          }
+        }
+
+        // 4) Image 3/4 슬라이드 명세: displayName으로 유저 검색 (where 쿼리)
+        if (!foundUid) {
+          const qDisplayName = query(collection(db, "users"), where("displayName", "==", rawUsername));
+          const qSnap3 = await getDocs(qDisplayName);
+          if (!qSnap3.empty) {
+            foundUid = qSnap3.docs[0].id;
+            const uData = qSnap3.docs[0].data();
+            foundName = uData.displayName || rawUsername;
+            foundBio = uData.bio || "";
+          }
+        }
+
+        // 5) 유저를 찾은 경우: 프로필 상세 정보 동기화
+        if (foundUid) {
+          if (isMounted) {
+            setUserNotFound(false);
+            setProfileUid(foundUid);
+          }
+
+          // users/{foundUid}/profile/info 문서 조회
+          const profileSnap = await getDoc(doc(db, "users", foundUid, "profile", "info"));
           if (profileSnap.exists()) {
             const pData = profileSnap.data();
-            if (isMounted) {
-              setDisplayName(pData.displayName || mappedData.displayName || rawUsername);
-              setBio(pData.bio || `안녕하세요! ${pData.displayName}입니다 ✨`);
-              localStorage.setItem(
-                `my-link-user-${rawUsername}`,
-                JSON.stringify({
-                  displayName: pData.displayName,
-                  bio: pData.bio,
-                  uid: targetUid,
-                })
-              );
-            }
+            foundName = pData.displayName || foundName;
+            foundBio = pData.bio || foundBio;
+          }
+
+          if (isMounted) {
+            setDisplayName(foundName);
+            setBio(foundBio || `안녕하세요! ${foundName}입니다 ✨`);
+            localStorage.setItem(
+              `my-link-user-${rawUsername}`,
+              JSON.stringify({
+                displayName: foundName,
+                bio: foundBio,
+                uid: foundUid,
+              })
+            );
           }
         } else if (rawUsername === "sieun" || rawUsername === "jse12345" || rawUsername === "used776655" || rawUsername === "정시은") {
           // 기본 프로필 폴백 (정시은 님 기본값)
@@ -141,7 +190,7 @@ export default function UserProfilePage({
             setBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨");
           }
         } else {
-          // 3차시 Slide 1 요구사항: username을 찾지 못하면 404 처리
+          // 3차시 Step 2 요구사항: 일치하는 유저가 없으면 404 페이지 표시
           if (isMounted) {
             setUserNotFound(true);
           }
@@ -580,5 +629,20 @@ export default function UserProfilePage({
         </p>
       </footer>
     </div>
+  );
+}
+
+
+export default function UserProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#FEF08A] flex items-center justify-center font-black text-sm">
+          마이링크 불러오는 중...
+        </div>
+      }
+    >
+      <UserProfileContent />
+    </Suspense>
   );
 }

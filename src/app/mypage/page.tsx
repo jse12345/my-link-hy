@@ -26,7 +26,7 @@ import {
   UserCheck,
 } from "lucide-react";
 
-import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, setDoc, getDoc } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, setDoc, getDoc, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { GoogleIcon } from "@/components/icons";
 import { useAuth } from "@/hooks/useAuth";
@@ -61,6 +61,58 @@ export default function MyPage() {
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileSavedMsg, setProfileSavedMsg] = useState("");
 
+  // 3차시 중복 확인 상태 (username & displayName)
+  const [usernameCheckMsg, setUsernameCheckMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [displayNameCheckMsg, setDisplayNameCheckMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+  const [isCheckingDisplayName, setIsCheckingDisplayName] = useState(false);
+
+  // username 중복 확인 함수
+  const checkUsernameDuplicate = async () => {
+    const cleanUsername = profileUsername.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    if (!cleanUsername) {
+      setUsernameCheckMsg({ ok: false, text: "확인할 username을 입력해주세요." });
+      return;
+    }
+    setIsCheckingUsername(true);
+    try {
+      const snap = await getDoc(doc(db, "usernames", cleanUsername));
+      if (snap.exists() && snap.data()?.uid !== currentUser?.uid) {
+        setUsernameCheckMsg({ ok: false, text: `⚠️ "${cleanUsername}"은(는) 이미 다른 사용자가 사용 중입니다.` });
+      } else {
+        setUsernameCheckMsg({ ok: true, text: `✅ "${cleanUsername}"은(는) 사용 가능한 아이디입니다!` });
+      }
+    } catch {
+      setUsernameCheckMsg({ ok: true, text: `✅ "${cleanUsername}" 사용 가능` });
+    } finally {
+      setIsCheckingUsername(false);
+    }
+  };
+
+  // displayName 중복 확인 함수 (사용자 요청: display name도 수정 가능 + 중복 확인)
+  const checkDisplayNameDuplicate = async () => {
+    const cleanName = profileDisplayName.trim();
+    if (!cleanName) {
+      setDisplayNameCheckMsg({ ok: false, text: "확인할 이름을 입력해주세요." });
+      return;
+    }
+    setIsCheckingDisplayName(true);
+    try {
+      const q = query(collection(db, "users"), where("displayName", "==", cleanName));
+      const querySnap = await getDocs(q);
+      const isTaken = querySnap.docs.some((d) => d.id !== currentUser?.uid);
+      if (isTaken) {
+        setDisplayNameCheckMsg({ ok: false, text: `⚠️ "${cleanName}"은(는) 이미 다른 사용자가 사용 중입니다.` });
+      } else {
+        setDisplayNameCheckMsg({ ok: true, text: `✅ "${cleanName}"은(는) 사용 가능한 멋진 이름입니다!` });
+      }
+    } catch {
+      setDisplayNameCheckMsg({ ok: true, text: `✅ "${cleanName}" 사용 가능` });
+    } finally {
+      setIsCheckingDisplayName(false);
+    }
+  };
+
   // 3차시: Firestore에서 프로필 데이터 불러오기 (users/{userId}/profile/info)
   useEffect(() => {
     if (!currentUser) {
@@ -91,6 +143,7 @@ export default function MyPage() {
 
     // Firestore 프로필 조회
     async function loadProfile() {
+      if (!currentUser) return;
       try {
         const snap = await getDoc(doc(db, "users", currentUser.uid, "profile", "info"));
         if (snap.exists()) {
@@ -612,9 +665,19 @@ export default function MyPage() {
           <form onSubmit={handleSaveProfile} className="space-y-3.5">
             {/* 1. 고유 사용자명 (URL 경로) */}
             <div>
-              <label htmlFor="profile-username" className="block text-xs font-black mb-1.5 text-neutral-900">
-                1. 공유 사용자명 (username) *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="profile-username" className="text-xs font-black text-neutral-900">
+                  1. 공유 사용자명 (username) *
+                </label>
+                <button
+                  type="button"
+                  onClick={checkUsernameDuplicate}
+                  disabled={isCheckingUsername}
+                  className="px-2.5 py-1 bg-white hover:bg-neutral-100 border-[2px] border-black rounded-[6px] text-[11px] font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer disabled:opacity-50 transition-all"
+                >
+                  {isCheckingUsername ? "검사 중..." : "중복 확인"}
+                </button>
+              </div>
               <div className="flex items-center bg-white border-[2.5px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] overflow-hidden">
                 <span className="px-2.5 py-2.5 bg-neutral-100 border-r-[2px] border-black font-mono text-xs font-black text-neutral-600 shrink-0">
                   /
@@ -624,12 +687,18 @@ export default function MyPage() {
                   type="text"
                   placeholder="예: sieun (영문 소문자, 숫자, 하이픈)"
                   value={profileUsername}
-                  onChange={(e) =>
-                    setProfileUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))
-                  }
+                  onChange={(e) => {
+                    setProfileUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""));
+                    if (usernameCheckMsg) setUsernameCheckMsg(null);
+                  }}
                   className="w-full px-3 py-2 font-mono font-bold text-sm focus:outline-none placeholder:text-neutral-400"
                 />
               </div>
+              {usernameCheckMsg && (
+                <p className={`text-[11px] font-bold mt-1.5 ${usernameCheckMsg.ok ? "text-emerald-700" : "text-rose-600"}`}>
+                  {usernameCheckMsg.text}
+                </p>
+              )}
               <p className="text-[11px] font-bold text-neutral-600 mt-1">
                 👉 내 고유 공개 주소: <span className="font-mono text-black font-black">http://localhost:3000/{profileUsername || "sieun"}</span>
               </p>
@@ -637,17 +706,35 @@ export default function MyPage() {
 
             {/* 2. 표시 이름 (displayName) */}
             <div>
-              <label htmlFor="profile-displayname" className="block text-xs font-black mb-1.5 text-neutral-900">
-                2. 화면 표시 이름 (displayName) *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="profile-displayname" className="text-xs font-black text-neutral-900">
+                  2. 화면 표시 이름 (displayName) *
+                </label>
+                <button
+                  type="button"
+                  onClick={checkDisplayNameDuplicate}
+                  disabled={isCheckingDisplayName}
+                  className="px-2.5 py-1 bg-white hover:bg-neutral-100 border-[2px] border-black rounded-[6px] text-[11px] font-black shadow-[2px_2px_0px_#000] active:translate-x-[1px] active:translate-y-[1px] cursor-pointer disabled:opacity-50 transition-all"
+                >
+                  {isCheckingDisplayName ? "검사 중..." : "중복 확인"}
+                </button>
+              </div>
               <input
                 id="profile-displayname"
                 type="text"
                 placeholder="예: 정시은 (한글/영문 모두 가능)"
                 value={profileDisplayName}
-                onChange={(e) => setProfileDisplayName(e.target.value)}
+                onChange={(e) => {
+                  setProfileDisplayName(e.target.value);
+                  if (displayNameCheckMsg) setDisplayNameCheckMsg(null);
+                }}
                 className="w-full px-3.5 py-2.5 bg-white border-[2.5px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] font-bold text-sm focus:outline-none focus:ring-2 focus:ring-black placeholder:text-neutral-400"
               />
+              {displayNameCheckMsg && (
+                <p className={`text-[11px] font-bold mt-1.5 ${displayNameCheckMsg.ok ? "text-emerald-700" : "text-rose-600"}`}>
+                  {displayNameCheckMsg.text}
+                </p>
+              )}
             </div>
 
             {/* 3. 소개글 (bio) */}

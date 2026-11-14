@@ -12,6 +12,7 @@ import {
   Settings,
   Mail,
   Sparkles,
+  ExternalLink,
 } from "lucide-react";
 import { GoogleIcon } from "@/components/icons";
 import type { AuthUser } from "@/hooks/useAuth";
@@ -41,10 +42,33 @@ export function Header({ user, onLogin, onLogout }: HeaderProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 링크 복사 기능
+  // 사용자 고유 URL (username 또는 displayName)
+  const [userPath, setUserPath] = useState<string>("sieun");
+
+  useEffect(() => {
+    if (!user) return;
+    const defaultPath = (user.displayName || user.email?.split("@")[0] || "sieun")
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "");
+
+    const cached = localStorage.getItem(`my-link-profile-${user.uid}`);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed.username) {
+          setUserPath(parsed.username);
+          return;
+        }
+      } catch {}
+    }
+    setUserPath(defaultPath);
+  }, [user]);
+
+  // 링크 복사 기능 (내 개인 페이지 주소 복사)
   const handleCopyLink = () => {
     if (typeof window !== "undefined") {
-      navigator.clipboard.writeText(window.location.origin);
+      const fullUrl = `${window.location.origin}/${userPath}`;
+      navigator.clipboard.writeText(fullUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -164,18 +188,18 @@ export function Header({ user, onLogin, onLogout }: HeaderProps) {
                       )}
                     </button>
 
-                    {/* 3. 미리보기 */}
+                    {/* 3. 내 개인 페이지 이동 (Task 요구사항: /[username] 링크 추가) */}
                     <Link
-                      href="/"
+                      href={`/${userPath}`}
                       onClick={() => setDropdownOpen(false)}
-                      className="w-full flex items-center justify-between p-2.5 bg-neutral-50 hover:bg-neutral-100 border-[2px] border-black rounded-[8px] text-xs font-black text-black transition-colors cursor-pointer"
+                      className="w-full flex items-center justify-between p-2.5 bg-[#FEF08A] hover:bg-yellow-300 border-[2px] border-black rounded-[8px] text-xs font-black text-black transition-colors cursor-pointer shadow-[2px_2px_0px_#000]"
                     >
                       <div className="flex items-center gap-2">
-                        <Eye className="w-4 h-4 stroke-[2.5]" />
-                        <span>내 마이링크 미리보기</span>
+                        <ExternalLink className="w-4 h-4 stroke-[2.5]" />
+                        <span>내 개인 페이지 (/{userPath})</span>
                       </div>
                       <span className="text-[10px] bg-black text-[#FEF08A] px-1.5 py-0.5 rounded font-black">
-                        VIEW
+                        GO ↗
                       </span>
                     </Link>
 
