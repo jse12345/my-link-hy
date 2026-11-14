@@ -61,7 +61,8 @@ const THEME_PALETTES: ThemePalette[] = [
 function UserProfileContent() {
   const routeParams = useParams();
   const rawParam = typeof routeParams?.username === "string" ? routeParams.username : "";
-  const rawUsername = decodeURIComponent(rawParam).toLowerCase();
+  const decodedParam = decodeURIComponent(rawParam).trim();
+  const rawUsername = decodedParam.toLowerCase();
 
   const { user, loading: authLoading, loginWithGoogle, logout } = useAuth();
 
@@ -114,8 +115,8 @@ function UserProfileContent() {
       }
 
       try {
-        // Walkthrough 명세: user.ts의 getUserByDisplayName 활용
-        const userProf = await getUserByDisplayName(rawUsername);
+        // Walkthrough 명세: user.ts의 getUserByDisplayName 활용 (username 또는 displayName 지원)
+        const userProf = await getUserByDisplayName(decodedParam || rawUsername);
         if (userProf) {
           if (isMounted) {
             setUserNotFound(false);

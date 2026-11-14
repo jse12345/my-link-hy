@@ -47,6 +47,25 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
       };
     }
 
+    // 1-1. users 컬렉션에서 profile.displayName 일치 조회
+    const qProfName = query(collection(db, "users"), where("profile.displayName", "==", decoded));
+    const snapProfName = await getDocs(qProfName);
+    if (!snapProfName.empty) {
+      const d = snapProfName.docs[0];
+      const data = d.data();
+      const prof = data.profile || data;
+      return {
+        uid: d.id,
+        displayName: prof.displayName || data.displayName || decoded,
+        username: prof.username || data.username || lower,
+        bio: prof.bio || data.bio || "",
+        photoURL: prof.photoURL || data.photoURL || "",
+        email: prof.email || data.email || "",
+        github: prof.github || data.github || "",
+        socials: prof.socials || data.socials,
+      };
+    }
+
     // 2. users 컬렉션에서 username 일치 조회
     const qUser = query(collection(db, "users"), where("username", "==", lower));
     const snapUser = await getDocs(qUser);

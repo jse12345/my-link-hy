@@ -225,6 +225,24 @@ export default function MyPage() {
         }
       }
 
+      // 3차시: displayName 중복 확인 (다른 사용자가 이미 동일한 표시 이름을 사용하는지 검사)
+      try {
+        const qName = query(collection(db, "users"), where("displayName", "==", cleanName));
+        const nameSnap = await getDocs(qName);
+        const isNameTaken = nameSnap.docs.some((d) => d.id !== targetUid);
+        if (isNameTaken) {
+          const proceed = window.confirm(
+            `⚠️ "${cleanName}"은(는) 이미 다른 사용자가 사용 중인 이름입니다.\n그래도 이 이름으로 저장하시겠습니까?`
+          );
+          if (!proceed) {
+            setIsProfileSaving(false);
+            return;
+          }
+        }
+      } catch (nameErr) {
+        console.warn("displayName 중복 검사 건너뜀:", nameErr);
+      }
+
       const profileData = {
         username: cleanUsername,
         displayName: cleanName,
@@ -237,6 +255,9 @@ export default function MyPage() {
 
       // 1) users/{userId}/profile/info 서브컬렉션
       await setDoc(doc(db, "users", targetUid, "profile", "info"), profileData, { merge: true });
+
+      // 1-1) users/{userId}/profile/profile 문서 (슬라이드 명세 완벽 지원)
+      await setDoc(doc(db, "users", targetUid, "profile", "profile"), profileData, { merge: true });
 
       // 2) users/{userId} 루트 문서 (최상위 필드 및 profile 객체 동시 저장: profile.username 쿼리 호환)
       await setDoc(doc(db, "users", targetUid), {
