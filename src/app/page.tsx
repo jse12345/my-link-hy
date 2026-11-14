@@ -32,7 +32,7 @@ import { Header } from "@/components/Header";
 import { GoogleIcon } from "@/components/icons";
 import { useAuth } from "@/hooks/useAuth";
 
-import { DUMMY_LINKS, type LinkItem } from "@/data/links";
+import { DUMMY_LINKS, getStarterLinks, type LinkItem } from "@/data/links";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MarqueeTicker } from "@/components/profile/MarqueeTicker";
@@ -202,9 +202,10 @@ export default function ProfilePage() {
             } catch {}
           }
 
+          const starterList = getStarterLinks(displayName, currentUsername, user?.email);
           const combined = [
             ...firestoreLinks,
-            ...DUMMY_LINKS.filter(
+            ...starterList.filter(
               (dummy) => !firestoreLinks.some((fl) => fl.url === dummy.url)
             ).map((dummy) => ({
               ...dummy,
@@ -568,8 +569,15 @@ export default function ProfilePage() {
             copied={copied}
           />
 
-          {/* 프로필 카드 섹션 (사진 및 다이내믹 이름 전달) */}
-          <ProfileHeader name={displayName} bio={bio} themeColor={themeColor} photoURL={user?.photoURL} />
+          {/* 프로필 카드 섹션 (사진 및 다이내믹 이름, GitHub, Email 전달) */}
+          <ProfileHeader
+            name={displayName}
+            bio={bio}
+            themeColor={themeColor}
+            photoURL={user?.photoURL}
+            email={user?.email}
+            username={currentUsername}
+          />
 
           {/* 링크 추가 & 관리 버튼 */}
           <div className="w-full mb-4 grid grid-cols-2 gap-2 animate-in fade-in duration-200">

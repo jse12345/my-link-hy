@@ -36,7 +36,7 @@ import { db } from "@/lib/firebase";
 import { GoogleIcon } from "@/components/icons";
 import { useAuth } from "@/hooks/useAuth";
 
-import { DUMMY_LINKS, type LinkItem } from "@/data/links";
+import { DUMMY_LINKS, getStarterLinks, type LinkItem } from "@/data/links";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -59,10 +59,12 @@ export default function MyPage() {
   // 11주차: 구글 소셜 로그인 상태 (useAuth)
   const { user: currentUser, loginWithGoogle: handleGoogleLogin, logout: handleLogout } = useAuth();
 
-  // 3차시: 프로필 수정 상태 (username, displayName, bio)
+  // 3차시: 프로필 수정 상태 (username, displayName, bio, github, email)
   const [profileUsername, setProfileUsername] = useState("sieun");
   const [profileDisplayName, setProfileDisplayName] = useState("정시은");
   const [profileBio, setProfileBio] = useState("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨");
+  const [profileGithub, setProfileGithub] = useState("jse12345");
+  const [profileContactEmail, setProfileContactEmail] = useState("used776655@gmail.com");
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileSavedMsg, setProfileSavedMsg] = useState("");
 
@@ -124,14 +126,21 @@ export default function MyPage() {
       setProfileUsername("sieun");
       setProfileDisplayName("정시은");
       setProfileBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨");
+      setProfileGithub("jse12345");
+      setProfileContactEmail("used776655@gmail.com");
       return;
     }
 
+    const isSieun = currentUser.email?.includes("used776655") || currentUser.displayName === "정시은";
     const defaultUsername = currentUser.email
       ? currentUser.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "")
       : "sieun";
-    const defaultName = currentUser.displayName || "정시은";
-    const defaultBio = "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
+    const defaultName = currentUser.displayName || (isSieun ? "정시은" : defaultUsername);
+    const defaultBio = isSieun
+      ? "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨"
+      : `안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 ${defaultName}입니다 ✨`;
+    const defaultGithub = isSieun ? "jse12345" : defaultUsername;
+    const defaultContactEmail = currentUser.email || (isSieun ? "used776655@gmail.com" : "");
 
     // 캐시 우선 로드
     const cached = localStorage.getItem(`my-link-profile-${currentUser.uid}`);
@@ -141,9 +150,17 @@ export default function MyPage() {
         setProfileUsername(parsed.username || defaultUsername);
         setProfileDisplayName(parsed.displayName || defaultName);
         setProfileBio(parsed.bio || defaultBio);
+        setProfileGithub(parsed.github || defaultGithub);
+        setProfileContactEmail(parsed.contactEmail || defaultContactEmail);
       } catch {
         // ignore
       }
+    } else {
+      setProfileUsername(defaultUsername);
+      setProfileDisplayName(defaultName);
+      setProfileBio(defaultBio);
+      setProfileGithub(defaultGithub);
+      setProfileContactEmail(defaultContactEmail);
     }
 
     // Firestore 프로필 조회
@@ -156,10 +173,14 @@ export default function MyPage() {
           setProfileUsername(data.username || defaultUsername);
           setProfileDisplayName(data.displayName || defaultName);
           setProfileBio(data.bio || defaultBio);
+          setProfileGithub(data.github || defaultGithub);
+          setProfileContactEmail(data.contactEmail || data.email || defaultContactEmail);
         } else {
           setProfileUsername(defaultUsername);
           setProfileDisplayName(defaultName);
           setProfileBio(defaultBio);
+          setProfileGithub(defaultGithub);
+          setProfileContactEmail(defaultContactEmail);
         }
       } catch (e) {
         console.warn("프로필 로드 에러:", e);
@@ -208,6 +229,9 @@ export default function MyPage() {
         username: cleanUsername,
         displayName: cleanName,
         bio: cleanBio,
+        github: profileGithub.trim(),
+        contactEmail: profileContactEmail.trim(),
+        email: profileContactEmail.trim() || currentUser.email || "",
         updatedAt: serverTimestamp(),
       };
 
@@ -223,7 +247,10 @@ export default function MyPage() {
       // 3) usernames/{username} 매핑 문서 (/[username] 라우팅용)
       await setDoc(doc(db, "usernames", cleanUsername), {
         uid: targetUid,
+        username: cleanUsername,
         displayName: cleanName,
+        github: profileGithub.trim(),
+        email: profileContactEmail.trim() || currentUser.email || "",
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
@@ -231,6 +258,8 @@ export default function MyPage() {
       localStorage.setItem(`my-link-user-${cleanUsername}`, JSON.stringify({
         displayName: cleanName,
         bio: cleanBio,
+        github: profileGithub.trim(),
+        email: profileContactEmail.trim() || currentUser.email || "",
         uid: targetUid,
       }));
 
@@ -297,9 +326,10 @@ export default function MyPage() {
             } catch {}
           }
 
+          const starterList = getStarterLinks(profileDisplayName, profileUsername, currentUser?.email);
           const combined = [
             ...firestoreLinks,
-            ...DUMMY_LINKS.filter(
+            ...starterList.filter(
               (dummy) => !firestoreLinks.some((fl) => fl.url === dummy.url)
             ).map((dummy) => ({
               ...dummy,
@@ -825,6 +855,39 @@ export default function MyPage() {
                 value={profileBio}
                 onChange={(e) => setProfileBio(e.target.value)}
                 className="w-full px-3.5 py-2 bg-white border-[2.5px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black placeholder:text-neutral-400 resize-none"
+              />
+            </div>
+
+            {/* 4. GitHub 아이디 또는 프로필 주소 (소셜 바 연동) */}
+            <div>
+              <label htmlFor="profile-github" className="block text-xs font-black mb-1.5 text-neutral-900">
+                4. 내 GitHub 아이디 (소셜 바 연동)
+              </label>
+              <input
+                id="profile-github"
+                type="text"
+                placeholder="예: gildong 또는 github 계정명"
+                value={profileGithub}
+                onChange={(e) => setProfileGithub(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border-[2.5px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black placeholder:text-neutral-400 font-mono"
+              />
+              <p className="text-[10px] font-bold text-neutral-600 mt-1">
+                👉 프로필 상단 GitHub 아이콘 클릭 시 <span className="font-mono text-black font-black">https://github.com/{profileGithub || profileUsername}</span>(으)로 이동합니다.
+              </p>
+            </div>
+
+            {/* 5. 공개 문의 이메일 (소셜 바 연동) */}
+            <div>
+              <label htmlFor="profile-email" className="block text-xs font-black mb-1.5 text-neutral-900">
+                5. 공개 문의 이메일 (소셜 바 연동)
+              </label>
+              <input
+                id="profile-email"
+                type="email"
+                placeholder="예: yourname@gmail.com"
+                value={profileContactEmail}
+                onChange={(e) => setProfileContactEmail(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-white border-[2.5px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] font-bold text-xs focus:outline-none focus:ring-2 focus:ring-black placeholder:text-neutral-400 font-mono"
               />
             </div>
 

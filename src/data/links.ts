@@ -94,3 +94,63 @@ export const LINK_CATEGORIES = [
   { id: "blog", label: "📝 블로그 & 스터디" },
   { id: "social", label: "🌐 소셜 & 연락처" },
 ] as const;
+
+/**
+ * 로그인한 사용자의 계정(이름, username, 이메일)에 맞춘 초기 링크 목록 반환
+ */
+export function getStarterLinks(
+  name?: string | null,
+  username?: string | null,
+  email?: string | null
+): LinkItem[] {
+  const cleanName = name || "정시은";
+  const cleanUser = (username || "sieun").toLowerCase();
+  const cleanEmail = email || "used776655@gmail.com";
+
+  // 정시은 계정 또는 기본 fallback일 때는 정시은 전용 데모 링크 반환
+  const isSieun =
+    cleanUser === "sieun" ||
+    cleanUser === "jse12345" ||
+    cleanName === "정시은" ||
+    cleanEmail.includes("used776655");
+
+  if (isSieun) {
+    return DUMMY_LINKS;
+  }
+
+  // 다른 사용자 계정용 맞춤 초기 링크
+  return [
+    {
+      id: `link-${cleanUser}-1`,
+      title: `${cleanName}의 GitHub 프로필 & 저장소`,
+      subtitle: `${cleanUser}의 개발 프로젝트 및 소스 코드`,
+      url: `https://github.com/${cleanUser}`,
+      category: "project",
+      tag: "GITHUB",
+      bgColor: "bg-white",
+      clickCount: 0,
+      featured: true,
+    },
+    {
+      id: `link-${cleanUser}-2`,
+      title: `${cleanName}의 기술 블로그`,
+      subtitle: "React, Next.js 학습 일지와 문제 해결기",
+      url: `https://velog.io/@${cleanUser}`,
+      category: "blog",
+      tag: "BLOG",
+      bgColor: "bg-[#BAE6FD]",
+      clickCount: 0,
+      featured: true,
+    },
+    {
+      id: `link-${cleanUser}-3`,
+      title: `커피챗 & 프로젝트 협업 문의 메일`,
+      subtitle: `${cleanEmail} 으로 자유롭게 제안 및 연락주세요`,
+      url: `mailto:${cleanEmail}`,
+      category: "contact",
+      tag: "CONTACT",
+      bgColor: "bg-[#FED7AA]",
+      clickCount: 0,
+    },
+  ];
+}

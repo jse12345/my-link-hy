@@ -8,6 +8,14 @@ export interface UserProfile {
   bio?: string;
   photoURL?: string;
   email?: string;
+  github?: string;
+  socials?: {
+    github?: string;
+    instagram?: string;
+    twitter?: string;
+    linkedin?: string;
+    email?: string;
+  };
 }
 
 /**
@@ -26,13 +34,16 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
     if (!snapName.empty) {
       const d = snapName.docs[0];
       const data = d.data();
+      const prof = data.profile || data;
       return {
         uid: d.id,
-        displayName: data.displayName || decoded,
-        username: data.username || lower,
-        bio: data.bio || "",
-        photoURL: data.photoURL || "",
-        email: data.email || "",
+        displayName: prof.displayName || data.displayName || decoded,
+        username: prof.username || data.username || lower,
+        bio: prof.bio || data.bio || "",
+        photoURL: prof.photoURL || data.photoURL || "",
+        email: prof.email || data.email || "",
+        github: prof.github || data.github || "",
+        socials: prof.socials || data.socials,
       };
     }
 
@@ -50,6 +61,8 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
         bio: prof.bio || data.bio || "",
         photoURL: prof.photoURL || data.photoURL || "",
         email: prof.email || data.email || "",
+        github: prof.github || data.github || "",
+        socials: prof.socials || data.socials,
       };
     }
 
@@ -67,6 +80,8 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
         bio: prof.bio || data.bio || "",
         photoURL: prof.photoURL || data.photoURL || "",
         email: prof.email || data.email || "",
+        github: prof.github || data.github || "",
+        socials: prof.socials || data.socials,
       };
     }
 
@@ -84,6 +99,8 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
         bio: profData.bio || "",
         photoURL: profData.photoURL || "",
         email: profData.email || "",
+        github: profData.github || mapData.github || "",
+        socials: profData.socials || mapData.socials,
       };
     }
 
@@ -94,6 +111,8 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
         displayName: "정시은",
         username: "sieun",
         bio: "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨",
+        github: "jse12345",
+        email: "used776655@gmail.com",
       };
     }
 

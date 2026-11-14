@@ -1,15 +1,26 @@
 import React from "react";
 import { Sparkles, Zap } from "lucide-react";
-import { SocialBar } from "./SocialBar";
+import { SocialBar, type SocialLinksConfig } from "./SocialBar";
 
 interface ProfileHeaderProps {
   name: string;
   bio: string;
   themeColor: string;
   photoURL?: string | null;
+  email?: string | null;
+  username?: string | null;
+  socials?: SocialLinksConfig;
 }
 
-export function ProfileHeader({ name, bio, themeColor, photoURL }: ProfileHeaderProps) {
+export function ProfileHeader({
+  name,
+  bio,
+  themeColor,
+  photoURL,
+  email,
+  username,
+  socials,
+}: ProfileHeaderProps) {
   // 사용자 이름에 따른 원형 아바타 텍스트 추출 (정시은 -> 시은, 홍길동 -> 길동, John -> JO)
   const getAvatarText = (userName: string) => {
     if (!userName) return "시은";
@@ -73,8 +84,8 @@ export function ProfileHeader({ name, bio, themeColor, photoURL }: ProfileHeader
         {bio}
       </p>
 
-      {/* 소셜 링크 아이콘 바 */}
-      <SocialBar />
+      {/* 소셜 링크 아이콘 바 (개인별 맞춤 링크 적용) */}
+      <SocialBar email={email} username={username} socials={socials} />
     </section>
   );
 }

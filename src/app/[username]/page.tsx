@@ -36,7 +36,7 @@ import { getUserByDisplayName } from "@/lib/user";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 
-import { DUMMY_LINKS, type LinkItem } from "@/data/links";
+import { DUMMY_LINKS, getStarterLinks, type LinkItem } from "@/data/links";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MarqueeTicker } from "@/components/profile/MarqueeTicker";
@@ -83,6 +83,8 @@ function UserProfileContent() {
     `안녕하세요! ${rawUsername}의 마이링크 페이지입니다 ✨`
   );
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
+  const [profileEmail, setProfileEmail] = useState<string | null>(null);
+  const [profileSocials, setProfileSocials] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [userNotFound, setUserNotFound] = useState(false);
 
@@ -121,6 +123,10 @@ function UserProfileContent() {
             setDisplayName(userProf.displayName);
             if (userProf.bio) setBio(userProf.bio);
             if (userProf.photoURL) setProfilePhoto(userProf.photoURL);
+            if (userProf.email) setProfileEmail(userProf.email);
+            if (userProf.socials || userProf.github) {
+              setProfileSocials(userProf.socials || { github: userProf.github, email: userProf.email });
+            }
             localStorage.setItem(
               `my-link-user-${rawUsername}`,
               JSON.stringify({
@@ -284,9 +290,10 @@ function UserProfileContent() {
             } catch {}
           }
 
+          const starterList = getStarterLinks(displayName, rawUsername, profileEmail || user?.email);
           const combined = [
             ...firestoreLinks,
-            ...DUMMY_LINKS.filter(
+            ...starterList.filter(
               (dummy) => !firestoreLinks.some((fl) => fl.url === dummy.url)
             ).map((dummy) => ({
               ...dummy,
@@ -544,6 +551,9 @@ function UserProfileContent() {
           bio={bio}
           themeColor={themeColor}
           photoURL={profilePhoto || (isOwner ? user?.photoURL : null)}
+          email={profileEmail || user?.email}
+          username={rawUsername}
+          socials={profileSocials}
         />
 
         {/* 주인이 접속했을 때만 나타나는 관리 버튼 */}
