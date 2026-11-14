@@ -6,9 +6,21 @@ interface ProfileHeaderProps {
   name: string;
   bio: string;
   themeColor: string;
+  photoURL?: string | null;
 }
 
-export function ProfileHeader({ name, bio, themeColor }: ProfileHeaderProps) {
+export function ProfileHeader({ name, bio, themeColor, photoURL }: ProfileHeaderProps) {
+  // 사용자 이름에 따른 원형 아바타 텍스트 추출 (정시은 -> 시은, 홍길동 -> 길동, John -> JO)
+  const getAvatarText = (userName: string) => {
+    if (!userName) return "시은";
+    if (userName.includes("시은")) return "시은";
+    const clean = userName.trim();
+    if (clean.length <= 2) return clean;
+    const isKorean = /[가-힣]/.test(clean);
+    return isKorean ? clean.slice(-2) : clean.slice(0, 2).toUpperCase();
+  };
+
+  const avatarText = getAvatarText(name);
   return (
     <section
       style={{ backgroundColor: themeColor }}
@@ -33,9 +45,13 @@ export function ProfileHeader({ name, bio, themeColor }: ProfileHeaderProps) {
       {/* 프로필 원형 아바타 (120px x 120px, 3px 테두리, 4px 하드 그림자) */}
       <div className="relative mb-4 shrink-0">
         <div className="w-[120px] h-[120px] rounded-full bg-[#E0E7FF] border-[3px] border-black shadow-[4px_4px_0px_#000] flex items-center justify-center overflow-hidden shrink-0">
-          <span className="text-4xl font-black select-none tracking-tight text-black whitespace-nowrap">
-            시은
-          </span>
+          {photoURL ? (
+            <img src={photoURL} alt={name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-4xl font-black select-none tracking-tight text-black whitespace-nowrap">
+              {avatarText}
+            </span>
+          )}
         </div>
         <div className="absolute bottom-0 right-0 bg-[#F43F5E] text-white p-2 rounded-full border-[2.5px] border-black shadow-[2px_2px_0px_#000]">
           <Sparkles className="w-4 h-4 fill-white stroke-[2.5]" />

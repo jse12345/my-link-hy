@@ -82,6 +82,7 @@ function UserProfileContent() {
   const [bio, setBio] = useState(
     `안녕하세요! ${rawUsername}의 마이링크 페이지입니다 ✨`
   );
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [userNotFound, setUserNotFound] = useState(false);
 
@@ -119,6 +120,7 @@ function UserProfileContent() {
             setProfileUid(userProf.uid);
             setDisplayName(userProf.displayName);
             if (userProf.bio) setBio(userProf.bio);
+            if (userProf.photoURL) setProfilePhoto(userProf.photoURL);
             localStorage.setItem(
               `my-link-user-${rawUsername}`,
               JSON.stringify({
@@ -537,7 +539,12 @@ function UserProfileContent() {
         />
 
         {/* 동적 프로필 헤더 */}
-        <ProfileHeader name={displayName} bio={bio} themeColor={themeColor} />
+        <ProfileHeader
+          name={displayName}
+          bio={bio}
+          themeColor={themeColor}
+          photoURL={profilePhoto || (isOwner ? user?.photoURL : null)}
+        />
 
         {/* 주인이 접속했을 때만 나타나는 관리 버튼 */}
         {isOwner && (

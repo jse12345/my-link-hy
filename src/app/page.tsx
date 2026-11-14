@@ -70,12 +70,20 @@ export default function ProfilePage() {
 
   const isOwner = !!user;
 
-  // 3차시 프로필 정보 연동 (기본값: 정시은)
-  const [profileName, setProfileName] = useState("정시은");
-  const [profileBio, setProfileBio] = useState(
-    "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨"
-  );
-  const [usernameSlug, setUsernameSlug] = useState("sieun");
+  // 3차시 프로필 정보 연동
+  const [profileName, setProfileName] = useState("");
+  const [profileBio, setProfileBio] = useState("");
+  const [usernameSlug, setUsernameSlug] = useState("");
+
+  const defaultName = user?.displayName || (user?.email ? user.email.split("@")[0] : "정시은");
+  const defaultUsername = user?.email ? user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "") : "sieun";
+  const defaultBio = user?.displayName
+    ? `안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 ${user.displayName}입니다 ✨`
+    : "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
+
+  const displayName = profileName || defaultName;
+  const bio = profileBio || defaultBio;
+  const currentUsername = usernameSlug || defaultUsername;
 
   // 랜딩 페이지 미리보기 링크 클릭 카운트 상태
   const [previewCounts, setPreviewCounts] = useState<{ [id: string]: number }>({
@@ -100,10 +108,6 @@ export default function ProfilePage() {
     });
   };
 
-  // 사용자 이름: Firestore 프로필명 > Google 계정명 > fallback 정시은
-  const displayName = profileName || user?.displayName || "정시은";
-  const bio = profileBio;
-
   // Firestore 실시간 동기화
   useEffect(() => {
     const targetUid = user?.uid || "anonymous";
@@ -111,6 +115,10 @@ export default function ProfilePage() {
 
     // 프로필 정보 로드 (이름, bio, username)
     if (user) {
+      const defName = user.displayName || (user.email ? user.email.split("@")[0] : "정시은");
+      const defUsername = user.email ? user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "") : "sieun";
+      const defBio = `안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 ${defName}입니다 ✨`;
+
       const cachedProfile = localStorage.getItem(`my-link-profile-${user.uid}`);
       if (cachedProfile) {
         try {
@@ -119,7 +127,12 @@ export default function ProfilePage() {
           if (parsed.bio) setProfileBio(parsed.bio);
           if (parsed.username) setUsernameSlug(parsed.username);
         } catch {}
+      } else {
+        setProfileName(defName);
+        setUsernameSlug(defUsername);
+        setProfileBio(defBio);
       }
+
       getDoc(doc(db, "users", user.uid, "profile", "info"))
         .then((snap) => {
           if (snap.exists()) {
@@ -127,9 +140,17 @@ export default function ProfilePage() {
             if (data.displayName) setProfileName(data.displayName);
             if (data.bio) setProfileBio(data.bio);
             if (data.username) setUsernameSlug(data.username);
+          } else {
+            setProfileName(defName);
+            setUsernameSlug(defUsername);
+            setProfileBio(defBio);
           }
         })
         .catch(() => {});
+    } else {
+      setProfileName("정시은");
+      setUsernameSlug("sieun");
+      setProfileBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨");
     }
 
     // 1. 로컬스토리지 캐시 우선 로드
@@ -529,8 +550,8 @@ export default function ProfilePage() {
               </span>
             </div>
             <Link
-              href={`/${usernameSlug}`}
-              title={`내 공개 페이지 (/${usernameSlug}) 바로가기`}
+              href={`/${currentUsername}`}
+              title={`내 공개 페이지 (/${currentUsername}) 바로가기`}
               className="px-2.5 py-0.5 bg-white hover:bg-neutral-50 border-[1.5px] border-black rounded-[6px] font-mono text-[11px] font-bold text-neutral-800 shadow-[1px_1px_0px_#000] hover:shadow-[2px_2px_0px_#000] transition-all flex items-center gap-1 shrink-0"
             >
               <span>users/{user?.uid ? (user.uid.length > 10 ? user.uid.slice(0, 10) + "..." : user.uid) : "3yNOiHTN..."}</span>
@@ -547,8 +568,8 @@ export default function ProfilePage() {
             copied={copied}
           />
 
-          {/* 프로필 카드 섹션 */}
-          <ProfileHeader name={displayName} bio={bio} themeColor={themeColor} />
+          {/* 프로필 카드 섹션 (사진 및 다이내믹 이름 전달) */}
+          <ProfileHeader name={displayName} bio={bio} themeColor={themeColor} photoURL={user?.photoURL} />
 
           {/* 링크 추가 & 관리 버튼 */}
           <div className="w-full mb-4 grid grid-cols-2 gap-2 animate-in fade-in duration-200">
