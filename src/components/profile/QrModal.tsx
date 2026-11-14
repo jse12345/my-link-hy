@@ -15,7 +15,7 @@ export function QrModal({ isOpen, onClose }: QrModalProps) {
   if (!isOpen) return null;
 
   const wifiUrl = "http://172.30.1.83:3000";
-  const githubUrl = "https://github.com/jse12345/my-link-hy";
+  const githubUrl = "https://github.com";
 
   const currentUrl = selectedTarget === "wifi" ? wifiUrl : githubUrl;
 

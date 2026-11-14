@@ -124,13 +124,13 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
     }
 
     // 4. 기본 프로필 폴백
-    if (["sieun", "jse12345", "used776655", "user", "사용자"].includes(lower) || decoded === "사용자") {
+    if (["user", "사용자"].includes(lower) || decoded === "사용자") {
       return {
         uid: "user-default",
         displayName: "사용자",
         username: "user",
         bio: "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 사용자입니다 ✨",
-        github: "jse12345",
+        github: "",
         email: "",
       };
     }

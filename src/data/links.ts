@@ -15,8 +15,8 @@ export const DUMMY_LINKS: LinkItem[] = [
   {
     id: "link-1",
     title: "GitHub 메인 프로필 & 저장소",
-    subtitle: "my-link-hy 및 프론트엔드 토이 프로젝트 소스 코드",
-    url: "https://github.com/jse12345/my-link-hy",
+    subtitle: "프론트엔드 토이 프로젝트 소스 코드 및 저장소",
+    url: "https://github.com",
     category: "project",
     tag: "GITHUB",
     bgColor: "bg-white",
@@ -27,7 +27,7 @@ export const DUMMY_LINKS: LinkItem[] = [
     id: "link-2",
     title: "바이브 코딩 인터랙티브 포트폴리오",
     subtitle: "AI와 함께 빌드한 Next.js 16 풀스택 웹 애플리케이션 모음",
-    url: "https://github.com/jse12345",
+    url: "https://github.com",
     category: "project",
     tag: "HOT",
     bgColor: "bg-[#FDE047]", // 옐로우
@@ -38,7 +38,7 @@ export const DUMMY_LINKS: LinkItem[] = [
     id: "link-3",
     title: "기술 공부 블로그 & 회고",
     subtitle: "React 19, TypeScript, 디자인 시스템 학습 일지와 문제 해결기",
-    url: "https://github.com/jse12345",
+    url: "https://velog.io",
     category: "blog",
     tag: "BLOG",
     bgColor: "bg-[#BAE6FD]", // 스카이블루
@@ -78,8 +78,8 @@ export const DUMMY_LINKS: LinkItem[] = [
   {
     id: "link-7",
     title: "커피챗 & 프로젝트 협업 문의 메일",
-    subtitle: "used776655@gmail.com 으로 자유롭게 제안 및 연락주세요",
-    url: "mailto:used776655@gmail.com",
+    subtitle: "자유롭게 제안 및 연락주세요",
+    url: "mailto:contact@example.com",
     category: "contact",
     tag: "CONTACT",
     bgColor: "bg-[#FED7AA]", // 오렌지

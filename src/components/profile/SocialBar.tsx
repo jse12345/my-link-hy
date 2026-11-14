@@ -22,27 +22,18 @@ interface SocialBarProps {
 }
 
 export function SocialBar({ email, username, socials }: SocialBarProps = {}) {
-  // 사용자의 계정 정보(username, email, socials)를 바탕으로 개인 맞춤 소셜 링크 생성
-  const isSieunAccount =
-    !username ||
-    username === "sieun" ||
-    username === "jse12345" ||
-    email?.includes("used776655");
-
   // 1. GitHub URL 결정
   let userGithub = "https://github.com";
   if (socials?.github) {
     userGithub = socials.github.startsWith("http")
       ? socials.github
       : `https://github.com/${socials.github.replace(/^@/, "")}`;
-  } else if (isSieunAccount) {
-    userGithub = "https://github.com/jse12345";
-  } else if (username) {
+  } else if (username && username !== "user") {
     userGithub = `https://github.com/${username}`;
   }
 
   // 2. 이메일 링크 결정
-  const rawEmail = socials?.email || email || (isSieunAccount ? "used776655@gmail.com" : "");
+  const rawEmail = socials?.email || email || "";
   const emailUrl = rawEmail
     ? rawEmail.startsWith("mailto:")
       ? rawEmail

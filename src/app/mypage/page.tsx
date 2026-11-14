@@ -63,7 +63,7 @@ export default function MyPage() {
   const [profileUsername, setProfileUsername] = useState("user");
   const [profileDisplayName, setProfileDisplayName] = useState("사용자");
   const [profileBio, setProfileBio] = useState("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 사용자입니다 ✨");
-  const [profileGithub, setProfileGithub] = useState("jse12345");
+  const [profileGithub, setProfileGithub] = useState("");
   const [profileContactEmail, setProfileContactEmail] = useState("");
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileSavedMsg, setProfileSavedMsg] = useState("");
@@ -126,7 +126,7 @@ export default function MyPage() {
       setProfileUsername("user");
       setProfileDisplayName("사용자");
       setProfileBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 사용자입니다 ✨");
-      setProfileGithub("jse12345");
+      setProfileGithub("");
       setProfileContactEmail("");
       return;
     }
@@ -296,11 +296,17 @@ export default function MyPage() {
     const currentUid = currentUser?.uid || "anonymous";
     const cacheKey = `my-link-custom-links-${currentUid}`;
 
-    // 1. 로컬스토리지 우선 로드
+    // 1. 로컬스토리지 우선 로드 (개인 정보 잔여 캐시 필터링)
     const saved = localStorage.getItem(cacheKey);
     if (saved) {
       try {
-        setLinks(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        const hasPersonal = parsed.some((p: any) => p.url?.includes("jse12345") || p.subtitle?.includes("my-link-hy") || p.title?.includes("정시은"));
+        if (!hasPersonal) {
+          setLinks(parsed);
+        } else {
+          localStorage.removeItem(cacheKey);
+        }
       } catch {
         // parsing error fallback
       }

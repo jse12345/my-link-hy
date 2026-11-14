@@ -153,11 +153,17 @@ export default function ProfilePage() {
       setProfileBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 사용자입니다 ✨");
     }
 
-    // 1. 로컬스토리지 캐시 우선 로드
+    // 1. 로컬스토리지 캐시 우선 로드 (개인 정보 잔여 캐시 필터링)
     const saved = localStorage.getItem(cacheKey);
     if (saved) {
       try {
-        setLinks(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        const hasPersonal = parsed.some((p: any) => p.url?.includes("jse12345") || p.subtitle?.includes("my-link-hy") || p.title?.includes("정시은"));
+        if (!hasPersonal) {
+          setLinks(parsed);
+        } else {
+          localStorage.removeItem(cacheKey);
+        }
       } catch {
         // ignore
       }

@@ -104,10 +104,10 @@ export function useAuth() {
   // 3. 테스트 계정 로그인 (Firebase 콘솔 미설정 시 즉시 테스트 지원)
   const loginWithTestUser = useCallback((name: string = "사용자") => {
     const mockUser: AuthUser = {
-      uid: "user-jse12345",
+      uid: "user-demo",
       displayName: name,
-      email: "jse12345@hanyang.ac.kr",
-      photoURL: "https://api.dicebear.com/7.x/bottts/svg?seed=jse",
+      email: "user@example.com",
+      photoURL: "https://api.dicebear.com/7.x/bottts/svg?seed=demo",
       isMock: true,
     };
     localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(mockUser));

@@ -246,11 +246,17 @@ function UserProfileContent() {
     const targetUid = rawTarget === "sieun-default" ? "sieun" : rawTarget;
     const cacheKey = `my-link-user-links-${rawUsername}`;
 
-    // 1. 캐시 우선 로드
+    // 1. 캐시 우선 로드 (개인 계정 잔여 데이터 필터링)
     const saved = localStorage.getItem(cacheKey);
     if (saved) {
       try {
-        setLinks(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        const hasPersonal = parsed.some((p: any) => p.url?.includes("jse12345") || p.subtitle?.includes("my-link-hy") || p.title?.includes("정시은"));
+        if (!hasPersonal) {
+          setLinks(parsed);
+        } else {
+          localStorage.removeItem(cacheKey);
+        }
       } catch {}
     }
 
