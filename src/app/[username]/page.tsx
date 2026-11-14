@@ -289,8 +289,9 @@ function UserProfileContent() {
         await updateDoc(doc(db, "users", targetUid, "links", id), {
           clickCount: increment(1),
         });
+        console.log(`[공개 페이지 클릭 카운트 +1 저장 성공] linkId: ${id}, targetUid: ${targetUid}`);
       } catch (err) {
-        console.warn("Firestore increment(1) 실패:", err);
+        console.error("Firestore clickCount increment(1) 에러:", err);
       }
     }
   };

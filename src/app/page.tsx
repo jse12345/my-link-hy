@@ -174,20 +174,27 @@ export default function ProfilePage() {
 
   // 3차시: 실시간 클릭 카운트 (동시성 안전 increment)
   const handleLinkClick = async (id: string) => {
+    // 1. 클릭 감지 및 로컬 즉각 반영
     const updated = links.map((l) =>
       l.id === id ? { ...l, clickCount: (l.clickCount ?? 0) + 1 } : l
     );
     saveLinks(updated);
 
+    // 2. 로그인 확인 (Image 2 명세: 로그인 확인, 실패 시 콘솔 에러)
     const targetUid = user?.uid;
-    if (targetUid) {
-      try {
-        await updateDoc(doc(db, "users", targetUid, "links", id), {
-          clickCount: increment(1),
-        });
-      } catch (err) {
-        console.warn("Firestore increment(1) 실패:", err);
-      }
+    if (!targetUid) {
+      console.error("클릭 카운트 저장 실패: 로그인 상태가 아닙니다.");
+      return;
+    }
+
+    // 3. Firestore 서버에 안전하게 clickCount increment(1) 저장
+    try {
+      await updateDoc(doc(db, "users", targetUid, "links", id), {
+        clickCount: increment(1),
+      });
+      console.log(`[클릭 카운트 +1 저장 성공] 문서: users/${targetUid}/links/${id}`);
+    } catch (err) {
+      console.error("Firestore clickCount increment(1) 에러:", err);
     }
   };
 

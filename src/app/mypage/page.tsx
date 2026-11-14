@@ -572,20 +572,27 @@ export default function MyPage() {
 
   // 3차시 실습: 링크 클릭 시 서버에 클릭 카운트 저장 (동시성 안전 increment)
   const handleLinkClick = async (id: string) => {
+    // 1. 클릭 감지 및 로컬 상태 즉각 반영
     const updated = links.map((l) =>
       l.id === id ? { ...l, clickCount: (l.clickCount ?? 0) + 1 } : l
     );
     saveLinks(updated);
 
+    // 2. 로그인 확인 (Image 2 명세: 로그인 확인, 실패 시 콘솔 에러)
     const targetUid = currentUser?.uid;
-    if (targetUid) {
-      try {
-        await updateDoc(doc(db, "users", targetUid, "links", id), {
-          clickCount: increment(1),
-        });
-      } catch (err) {
-        console.warn("Firestore increment(1) 실패:", err);
-      }
+    if (!targetUid) {
+      console.error("클릭 카운트 저장 실패: 로그인 상태가 아닙니다.");
+      return;
+    }
+
+    // 3. Firestore 서버에 안전하게 clickCount increment(1) 저장 (동시 클릭 손실 방지)
+    try {
+      await updateDoc(doc(db, "users", targetUid, "links", id), {
+        clickCount: increment(1),
+      });
+      console.log(`[클릭 카운트 +1 저장 성공] 문서: users/${targetUid}/links/${id}`);
+    } catch (err) {
+      console.error("Firestore clickCount increment(1) 에러:", err);
     }
   };
 
@@ -807,95 +814,6 @@ export default function MyPage() {
           </form>
         </section>
 
-        {/* 3차시: 실시간 클릭 통계 섹션 (총 클릭 수 + 링크별 통계 UI) */}
-        <section className="w-full bg-white border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-5 mb-6">
-          <div className="flex items-center justify-between mb-4 border-b-[2.5px] border-black pb-2.5">
-            <h2 className="font-black text-base flex items-center gap-2 text-black">
-              <BarChart3 className="w-5 h-5 stroke-[2.5] text-blue-600" />
-              <span>실시간 방문 통계</span>
-            </h2>
-            <span className="text-[10px] font-black bg-[#A7F3D0] text-black px-2 py-0.5 rounded-[4px] border border-black flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 stroke-[3]" />
-              <span>3차시 통계 UI</span>
-            </span>
-          </div>
-
-          {/* 3대 요약 지표 카드 */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="p-3 bg-[#FEF08A] border-[2px] border-black rounded-[8px] shadow-[2px_2px_0px_#000]">
-              <span className="text-[11px] font-black text-neutral-800 block">총 방문 클릭 수</span>
-              <div className="text-xl font-black text-black mt-1 flex items-center gap-1.5">
-                <Flame className="w-5 h-5 text-rose-500 fill-rose-500" />
-                <span>{totalClicks.toLocaleString()}회</span>
-              </div>
-            </div>
-
-            <div className="p-3 bg-[#BAE6FD] border-[2px] border-black rounded-[8px] shadow-[2px_2px_0px_#000]">
-              <span className="text-[11px] font-black text-neutral-800 block">등록된 링크 수</span>
-              <div className="text-xl font-black text-black mt-1 flex items-center gap-1.5">
-                <span>🔗</span>
-                <span>{links.length}개</span>
-              </div>
-            </div>
-          </div>
-
-          {/* 가장 인기 있는 링크 (1위) */}
-          {mostPopularLink && (
-            <div className="p-3 bg-[#FEF9C3] border-[2px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] mb-4">
-              <div className="flex items-center justify-between text-xs font-black mb-1">
-                <span className="flex items-center gap-1 text-amber-900">
-                  <Trophy className="w-4 h-4 text-amber-600 fill-amber-400" />
-                  <span>가장 인기 있는 링크 1위</span>
-                </span>
-                <span className="px-1.5 py-0.5 bg-black text-[#FEF08A] rounded text-[10px] font-black font-mono">
-                  {(mostPopularLink.clickCount || 0).toLocaleString()}회 클릭
-                </span>
-              </div>
-              <p className="text-xs font-black text-black truncate">
-                {mostPopularLink.title}
-              </p>
-              <p className="text-[10px] font-mono text-neutral-600 truncate mt-0.5">
-                {mostPopularLink.url}
-              </p>
-            </div>
-          )}
-
-          {/* 링크별 클릭 수 랭킹 바 리스트 */}
-          <div>
-            <h3 className="text-xs font-black text-neutral-800 mb-2">링크별 클릭 통계</h3>
-            <div className="space-y-2">
-              {sortedLinks.length === 0 ? (
-                <p className="text-xs font-bold text-neutral-500 text-center py-2">등록된 링크가 없습니다.</p>
-              ) : (
-                sortedLinks.slice(0, 5).map((l, idx) => {
-                  const pct = totalClicks > 0 ? Math.round(((l.clickCount || 0) / totalClicks) * 100) : 0;
-                  return (
-                    <div key={l.id} className="p-2.5 bg-neutral-50 border border-black/30 rounded-[6px]">
-                      <div className="flex items-center justify-between text-xs font-black mb-1">
-                        <span className="truncate max-w-[200px] flex items-center gap-1.5">
-                          <span className="w-4 h-4 rounded-full bg-black text-white text-[10px] font-black flex items-center justify-center shrink-0">
-                            {idx + 1}
-                          </span>
-                          <span className="truncate">{l.title}</span>
-                        </span>
-                        <span className="font-mono text-[11px] text-black shrink-0">
-                          {(l.clickCount || 0).toLocaleString()}회 ({pct}%)
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-neutral-200 rounded-full border border-black/20 overflow-hidden">
-                        <div
-                          className="h-full bg-emerald-500 transition-all duration-500"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </section>
-
         {/* 중간: 링크 추가 폼 영역 */}
         <section className="w-full bg-white border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-5 mb-6">
           <div className="flex items-center justify-between mb-4 border-b-[2.5px] border-black pb-2.5">
@@ -1091,6 +1009,7 @@ export default function MyPage() {
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => handleLinkClick(link.id)}
                         className="text-xs font-bold text-neutral-500 hover:text-black truncate block mt-0.5"
                       >
                         {link.url}
@@ -1103,6 +1022,7 @@ export default function MyPage() {
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => handleLinkClick(link.id)}
                         aria-label="링크 열기"
                         className="w-8 h-8 rounded-[6px] bg-neutral-100 hover:bg-neutral-200 border-[2px] border-black flex items-center justify-center transition-colors shadow-[1px_1px_0px_#000]"
                       >
@@ -1137,6 +1057,117 @@ export default function MyPage() {
                 )
               )
             )}
+          </div>
+        </section>
+
+        {/* ========================================================== */}
+        {/* 3차시: 마이페이지 하단 통계 섹션 (기존 링크 관리 영역 아래!) */}
+        {/* AI 프롬프트 예시: 총 클릭수(큰 글자) + 링크별 클릭수(많은 순) */}
+        {/* ========================================================== */}
+        <section className="w-full bg-white border-[3px] border-black rounded-[14px] shadow-[6px_6px_0px_#000] p-5 md:p-6 mt-8 mb-6">
+          <div className="flex items-center justify-between mb-4 border-b-[2.5px] border-black pb-2.5">
+            <h2 className="font-black text-base flex items-center gap-2 text-black">
+              <BarChart3 className="w-5 h-5 stroke-[2.5] text-blue-600" />
+              <span>방문 통계 분석</span>
+            </h2>
+            <span className="text-[10px] font-black bg-[#FEF08A] text-black px-2.5 py-0.5 rounded-[4px] border border-black flex items-center gap-1 shadow-[1px_1px_0px_#000]">
+              <TrendingUp className="w-3 h-3 stroke-[3]" />
+              <span>실시간 집계</span>
+            </span>
+          </div>
+
+          {/* 1. 총 클릭수 표시: 큰 숫자로 강조 (예: '총 234 클릭') */}
+          <div className="p-4 bg-[#FEF08A] border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] text-center mb-5">
+            <span className="text-xs font-black text-neutral-800 tracking-wider uppercase block">
+              TOTAL CLICKS
+            </span>
+            <div className="text-3xl sm:text-4xl font-black text-black my-1.5 flex items-center justify-center gap-2 tracking-tight">
+              <Flame className="w-7 h-7 text-rose-500 fill-rose-500" />
+              <span>총 {totalClicks.toLocaleString()} 클릭</span>
+            </div>
+            <p className="text-[11px] font-bold text-neutral-700">
+              전체 {links.length}개 링크의 누적 방문 클릭 수 합계입니다.
+            </p>
+          </div>
+
+          {/* 2. 가장 인기 있는 1위 링크 (클릭수가 1회 이상일 때) */}
+          {mostPopularLink && (
+            <div className="p-3 bg-[#FEF9C3] border-[2px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <div className="w-7 h-7 rounded-full bg-amber-400 border-[1.5px] border-black flex items-center justify-center shrink-0">
+                  <Trophy className="w-3.5 h-3.5 text-black fill-black" />
+                </div>
+                <div className="truncate">
+                  <div className="text-[10px] font-black text-amber-900">
+                    가장 인기 있는 링크 1위
+                  </div>
+                  <div className="text-xs font-black text-black truncate">
+                    {mostPopularLink.title}
+                  </div>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 bg-black text-[#FEF08A] rounded-[4px] text-xs font-black font-mono shrink-0">
+                {(mostPopularLink.clickCount || 0).toLocaleString()} 클릭
+              </span>
+            </div>
+          )}
+
+          {/* 3. 링크별 클릭수 표시 (많은 순으로 정렬 + 진행 바) */}
+          <div>
+            <div className="flex items-center justify-between mb-2.5 px-0.5">
+              <h3 className="text-xs font-black text-neutral-900 flex items-center gap-1">
+                <span>링크별 클릭수</span>
+                <span className="text-[10px] text-neutral-500 font-bold">(많은 순 정렬)</span>
+              </h3>
+              <span className="text-[10px] font-mono font-bold text-neutral-500">
+                {sortedLinks.length}개 링크
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {sortedLinks.length === 0 ? (
+                <div className="p-4 bg-neutral-50 border-[1.5px] border-dashed border-black/30 rounded-[8px] text-center">
+                  <p className="text-xs font-bold text-neutral-500">
+                    등록된 링크가 없습니다.
+                  </p>
+                </div>
+              ) : (
+                sortedLinks.map((linkItem, idx) => {
+                  const clicks = linkItem.clickCount || 0;
+                  const pct = totalClicks > 0 ? Math.round((clicks / totalClicks) * 100) : 0;
+                  return (
+                    <div
+                      key={linkItem.id}
+                      className="p-3 bg-neutral-50 hover:bg-white border-[2px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] transition-all"
+                    >
+                      <div className="flex items-center justify-between text-xs font-black mb-1.5">
+                        <div className="flex items-center gap-2 truncate max-w-[200px] sm:max-w-[240px]">
+                          <span className="w-5 h-5 rounded-[4px] bg-black text-[#FEF08A] text-[10px] font-black flex items-center justify-center shrink-0 border border-black font-mono">
+                            {idx + 1}
+                          </span>
+                          <span className="truncate text-black">{linkItem.title}</span>
+                        </div>
+                        <span className="font-mono text-xs font-black text-neutral-900 shrink-0">
+                          {clicks.toLocaleString()} 클릭
+                        </span>
+                      </div>
+
+                      {/* 진행 바 (간단하고 깔끔한 UI) */}
+                      <div className="w-full h-2 bg-neutral-200 rounded-full border border-black/30 overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-bold text-neutral-500 mt-1 font-mono">
+                        <span className="truncate max-w-[220px]">{linkItem.url}</span>
+                        <span>{pct}%</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </section>
       </main>
