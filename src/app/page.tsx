@@ -24,6 +24,7 @@ import {
   serverTimestamp,
   updateDoc,
   getDoc,
+  increment,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Header } from "@/components/Header";
@@ -171,11 +172,23 @@ export default function ProfilePage() {
     localStorage.setItem(cacheKey, JSON.stringify(updatedLinks));
   };
 
-  const handleLinkClick = (id: string) => {
+  // 3차시: 실시간 클릭 카운트 (동시성 안전 increment)
+  const handleLinkClick = async (id: string) => {
     const updated = links.map((l) =>
       l.id === id ? { ...l, clickCount: (l.clickCount ?? 0) + 1 } : l
     );
     saveLinks(updated);
+
+    const targetUid = user?.uid;
+    if (targetUid) {
+      try {
+        await updateDoc(doc(db, "users", targetUid, "links", id), {
+          clickCount: increment(1),
+        });
+      } catch (err) {
+        console.warn("Firestore increment(1) 실패:", err);
+      }
+    }
   };
 
   const handleAddLink = (newLinkItem: LinkItem) => {
@@ -437,21 +450,20 @@ export default function ProfilePage() {
         </main>
       ) : (
         <main className="w-full min-w-[360px] md:w-[80%] md:max-w-[480px] lg:w-[420px] mx-auto flex flex-col items-center py-6 px-4 flex-1 animate-in fade-in duration-300">
-          {/* 주인(로그인)일 때 나타나는 개인화 관리자 상태 바 */}
+          {/* 주인(로그인)일 때 나타나는 개인화 관리자 상태 바 (Image 2 완벽 구현) */}
           <div className="w-full mb-3 p-2.5 bg-white border-[2.5px] border-black rounded-[10px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs animate-in fade-in duration-200">
             <div className="flex items-center gap-1.5 truncate">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 stroke-[2.5]" />
               <span className="font-black text-black truncate">
-                {displayName}님의 관리자 홈
+                {displayName}님의 관리자 모드
               </span>
             </div>
             <Link
               href={`/${usernameSlug}`}
-              className="px-2 py-0.5 bg-[#FEF08A] hover:bg-yellow-300 border border-black rounded font-mono text-[10px] font-black text-black shrink-0 transition-colors flex items-center gap-1"
-              title="내 공개 페이지 바로가기"
+              title={`내 공개 페이지 (/${usernameSlug}) 바로가기`}
+              className="px-2.5 py-0.5 bg-white hover:bg-neutral-50 border-[1.5px] border-black rounded-[6px] font-mono text-[11px] font-bold text-neutral-800 shadow-[1px_1px_0px_#000] hover:shadow-[2px_2px_0px_#000] transition-all flex items-center gap-1 shrink-0"
             >
-              <span>/{usernameSlug}</span>
-              <span className="text-emerald-700 font-bold">↗</span>
+              <span>users/{user?.uid ? (user.uid.length > 10 ? user.uid.slice(0, 10) + "..." : user.uid) : "3yNOiHTN..."}</span>
             </Link>
           </div>
 

@@ -28,6 +28,7 @@ import {
   query,
   where,
   getDocs,
+  increment,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getUserByDisplayName } from "@/lib/user";
@@ -276,10 +277,22 @@ function UserProfileContent() {
     }
   }, [profileUid, user]);
 
-  const handleLinkClick = (id: string) => {
+  // 3차시: 실시간 클릭 카운트 (동시성 안전 increment)
+  const handleLinkClick = async (id: string) => {
     setLinks((prev) =>
       prev.map((l) => (l.id === id ? { ...l, clickCount: (l.clickCount ?? 0) + 1 } : l))
     );
+
+    const targetUid = profileUid || user?.uid;
+    if (targetUid && targetUid !== "anonymous" && !targetUid.includes("default")) {
+      try {
+        await updateDoc(doc(db, "users", targetUid, "links", id), {
+          clickCount: increment(1),
+        });
+      } catch (err) {
+        console.warn("Firestore increment(1) 실패:", err);
+      }
+    }
   };
 
   const handleAddLink = (newLinkItem: LinkItem) => {

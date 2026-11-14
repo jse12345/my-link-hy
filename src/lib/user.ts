@@ -42,13 +42,31 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
     if (!snapUser.empty) {
       const d = snapUser.docs[0];
       const data = d.data();
+      const prof = data.profile || data;
       return {
         uid: d.id,
-        displayName: data.displayName || decoded,
-        username: data.username || lower,
-        bio: data.bio || "",
-        photoURL: data.photoURL || "",
-        email: data.email || "",
+        displayName: prof.displayName || data.displayName || decoded,
+        username: prof.username || data.username || lower,
+        bio: prof.bio || data.bio || "",
+        photoURL: prof.photoURL || data.photoURL || "",
+        email: prof.email || data.email || "",
+      };
+    }
+
+    // 2-1. users 컬렉션에서 profile.username 일치 조회 (Slide 3 명세)
+    const qProfileUser = query(collection(db, "users"), where("profile.username", "==", lower));
+    const snapProfileUser = await getDocs(qProfileUser);
+    if (!snapProfileUser.empty) {
+      const d = snapProfileUser.docs[0];
+      const data = d.data();
+      const prof = data.profile || data;
+      return {
+        uid: d.id,
+        displayName: prof.displayName || data.displayName || decoded,
+        username: prof.username || data.username || lower,
+        bio: prof.bio || data.bio || "",
+        photoURL: prof.photoURL || data.photoURL || "",
+        email: prof.email || data.email || "",
       };
     }
 

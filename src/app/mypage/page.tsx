@@ -24,9 +24,13 @@ import {
   AlertTriangle,
   LogOut,
   UserCheck,
+  BarChart3,
+  TrendingUp,
+  Flame,
+  Trophy,
 } from "lucide-react";
 
-import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, setDoc, getDoc, query, where, getDocs } from "firebase/firestore";
+import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, setDoc, getDoc, query, where, getDocs, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { GoogleIcon } from "@/components/icons";
 import { useAuth } from "@/hooks/useAuth";
@@ -206,11 +210,14 @@ export default function MyPage() {
         updatedAt: serverTimestamp(),
       };
 
-      // 1) users/{userId}/profile/info
+      // 1) users/{userId}/profile/info 서브컬렉션
       await setDoc(doc(db, "users", targetUid, "profile", "info"), profileData, { merge: true });
 
-      // 2) users/{userId} 루트 문서
-      await setDoc(doc(db, "users", targetUid), profileData, { merge: true });
+      // 2) users/{userId} 루트 문서 (최상위 필드 및 profile 객체 동시 저장: profile.username 쿼리 호환)
+      await setDoc(doc(db, "users", targetUid), {
+        ...profileData,
+        profile: profileData,
+      }, { merge: true });
 
       // 3) usernames/{username} 매핑 문서 (/[username] 라우팅용)
       await setDoc(doc(db, "usernames", cleanUsername), {
@@ -558,6 +565,30 @@ export default function MyPage() {
     return <Link2 className="w-4 h-4 text-black stroke-[2.5]" />;
   };
 
+  // 3차시 통계 UI: 실시간 클릭 통계 계산
+  const totalClicks = links.reduce((sum, link) => sum + (link.clickCount || 0), 0);
+  const sortedLinks = [...links].sort((a, b) => (b.clickCount || 0) - (a.clickCount || 0));
+  const mostPopularLink = sortedLinks.length > 0 && (sortedLinks[0].clickCount || 0) > 0 ? sortedLinks[0] : null;
+
+  // 3차시 실습: 링크 클릭 시 서버에 클릭 카운트 저장 (동시성 안전 increment)
+  const handleLinkClick = async (id: string) => {
+    const updated = links.map((l) =>
+      l.id === id ? { ...l, clickCount: (l.clickCount ?? 0) + 1 } : l
+    );
+    saveLinks(updated);
+
+    const targetUid = currentUser?.uid;
+    if (targetUid) {
+      try {
+        await updateDoc(doc(db, "users", targetUid, "links", id), {
+          clickCount: increment(1),
+        });
+      } catch (err) {
+        console.warn("Firestore increment(1) 실패:", err);
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen min-w-[360px] bg-[#FEF08A] text-black flex flex-col justify-between selection:bg-black selection:text-[#FEF08A] font-sans relative overflow-x-auto">
       {/* 상단 네비게이션 티커 */}
@@ -774,6 +805,95 @@ export default function MyPage() {
               </Link>
             </div>
           </form>
+        </section>
+
+        {/* 3차시: 실시간 클릭 통계 섹션 (총 클릭 수 + 링크별 통계 UI) */}
+        <section className="w-full bg-white border-[3px] border-black rounded-[12px] shadow-[6px_6px_0px_#000] p-5 mb-6">
+          <div className="flex items-center justify-between mb-4 border-b-[2.5px] border-black pb-2.5">
+            <h2 className="font-black text-base flex items-center gap-2 text-black">
+              <BarChart3 className="w-5 h-5 stroke-[2.5] text-blue-600" />
+              <span>실시간 방문 통계</span>
+            </h2>
+            <span className="text-[10px] font-black bg-[#A7F3D0] text-black px-2 py-0.5 rounded-[4px] border border-black flex items-center gap-1">
+              <TrendingUp className="w-3 h-3 stroke-[3]" />
+              <span>3차시 통계 UI</span>
+            </span>
+          </div>
+
+          {/* 3대 요약 지표 카드 */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="p-3 bg-[#FEF08A] border-[2px] border-black rounded-[8px] shadow-[2px_2px_0px_#000]">
+              <span className="text-[11px] font-black text-neutral-800 block">총 방문 클릭 수</span>
+              <div className="text-xl font-black text-black mt-1 flex items-center gap-1.5">
+                <Flame className="w-5 h-5 text-rose-500 fill-rose-500" />
+                <span>{totalClicks.toLocaleString()}회</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#BAE6FD] border-[2px] border-black rounded-[8px] shadow-[2px_2px_0px_#000]">
+              <span className="text-[11px] font-black text-neutral-800 block">등록된 링크 수</span>
+              <div className="text-xl font-black text-black mt-1 flex items-center gap-1.5">
+                <span>🔗</span>
+                <span>{links.length}개</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 가장 인기 있는 링크 (1위) */}
+          {mostPopularLink && (
+            <div className="p-3 bg-[#FEF9C3] border-[2px] border-black rounded-[8px] shadow-[2px_2px_0px_#000] mb-4">
+              <div className="flex items-center justify-between text-xs font-black mb-1">
+                <span className="flex items-center gap-1 text-amber-900">
+                  <Trophy className="w-4 h-4 text-amber-600 fill-amber-400" />
+                  <span>가장 인기 있는 링크 1위</span>
+                </span>
+                <span className="px-1.5 py-0.5 bg-black text-[#FEF08A] rounded text-[10px] font-black font-mono">
+                  {(mostPopularLink.clickCount || 0).toLocaleString()}회 클릭
+                </span>
+              </div>
+              <p className="text-xs font-black text-black truncate">
+                {mostPopularLink.title}
+              </p>
+              <p className="text-[10px] font-mono text-neutral-600 truncate mt-0.5">
+                {mostPopularLink.url}
+              </p>
+            </div>
+          )}
+
+          {/* 링크별 클릭 수 랭킹 바 리스트 */}
+          <div>
+            <h3 className="text-xs font-black text-neutral-800 mb-2">링크별 클릭 통계</h3>
+            <div className="space-y-2">
+              {sortedLinks.length === 0 ? (
+                <p className="text-xs font-bold text-neutral-500 text-center py-2">등록된 링크가 없습니다.</p>
+              ) : (
+                sortedLinks.slice(0, 5).map((l, idx) => {
+                  const pct = totalClicks > 0 ? Math.round(((l.clickCount || 0) / totalClicks) * 100) : 0;
+                  return (
+                    <div key={l.id} className="p-2.5 bg-neutral-50 border border-black/30 rounded-[6px]">
+                      <div className="flex items-center justify-between text-xs font-black mb-1">
+                        <span className="truncate max-w-[200px] flex items-center gap-1.5">
+                          <span className="w-4 h-4 rounded-full bg-black text-white text-[10px] font-black flex items-center justify-center shrink-0">
+                            {idx + 1}
+                          </span>
+                          <span className="truncate">{l.title}</span>
+                        </span>
+                        <span className="font-mono text-[11px] text-black shrink-0">
+                          {(l.clickCount || 0).toLocaleString()}회 ({pct}%)
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-neutral-200 rounded-full border border-black/20 overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         </section>
 
         {/* 중간: 링크 추가 폼 영역 */}
