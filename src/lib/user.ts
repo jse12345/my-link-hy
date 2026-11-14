@@ -123,15 +123,15 @@ export async function getUserByDisplayName(displayName: string): Promise<UserPro
       };
     }
 
-    // 4. 기본 프로필 폴백 (정시은 계정)
-    if (["sieun", "jse12345", "used776655", "정시은"].includes(lower) || decoded === "정시은") {
+    // 4. 기본 프로필 폴백
+    if (["sieun", "jse12345", "used776655", "user", "사용자"].includes(lower) || decoded === "사용자") {
       return {
-        uid: "sieun-default",
-        displayName: "정시은",
-        username: "sieun",
-        bio: "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨",
+        uid: "user-default",
+        displayName: "사용자",
+        username: "user",
+        bio: "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 사용자입니다 ✨",
         github: "jse12345",
-        email: "used776655@gmail.com",
+        email: "",
       };
     }
 

@@ -60,11 +60,11 @@ export default function MyPage() {
   const { user: currentUser, loginWithGoogle: handleGoogleLogin, logout: handleLogout } = useAuth();
 
   // 3차시: 프로필 수정 상태 (username, displayName, bio, github, email)
-  const [profileUsername, setProfileUsername] = useState("sieun");
-  const [profileDisplayName, setProfileDisplayName] = useState("정시은");
-  const [profileBio, setProfileBio] = useState("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨");
+  const [profileUsername, setProfileUsername] = useState("user");
+  const [profileDisplayName, setProfileDisplayName] = useState("사용자");
+  const [profileBio, setProfileBio] = useState("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 사용자입니다 ✨");
   const [profileGithub, setProfileGithub] = useState("jse12345");
-  const [profileContactEmail, setProfileContactEmail] = useState("used776655@gmail.com");
+  const [profileContactEmail, setProfileContactEmail] = useState("");
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileSavedMsg, setProfileSavedMsg] = useState("");
 
@@ -123,24 +123,21 @@ export default function MyPage() {
   // 3차시: Firestore에서 프로필 데이터 불러오기 (users/{userId}/profile/info)
   useEffect(() => {
     if (!currentUser) {
-      setProfileUsername("sieun");
-      setProfileDisplayName("정시은");
-      setProfileBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨");
+      setProfileUsername("user");
+      setProfileDisplayName("사용자");
+      setProfileBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 사용자입니다 ✨");
       setProfileGithub("jse12345");
-      setProfileContactEmail("used776655@gmail.com");
+      setProfileContactEmail("");
       return;
     }
 
-    const isSieun = currentUser.email?.includes("used776655") || currentUser.displayName === "정시은";
     const defaultUsername = currentUser.email
       ? currentUser.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "")
-      : "sieun";
-    const defaultName = currentUser.displayName || (isSieun ? "정시은" : defaultUsername);
-    const defaultBio = isSieun
-      ? "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨"
-      : `안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 ${defaultName}입니다 ✨`;
-    const defaultGithub = isSieun ? "jse12345" : defaultUsername;
-    const defaultContactEmail = currentUser.email || (isSieun ? "used776655@gmail.com" : "");
+      : "user";
+    const defaultName = currentUser.displayName || defaultUsername || "사용자";
+    const defaultBio = `안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 ${defaultName}입니다 ✨`;
+    const defaultGithub = defaultUsername;
+    const defaultContactEmail = currentUser.email || "";
 
     // 캐시 우선 로드
     const cached = localStorage.getItem(`my-link-profile-${currentUser.uid}`);
@@ -849,7 +846,7 @@ export default function MyPage() {
               <input
                 id="profile-displayname"
                 type="text"
-                placeholder="예: 정시은 (한글/영문 모두 가능)"
+                placeholder="예: 사용자 또는 닉네임 (한글/영문 모두 가능)"
                 value={profileDisplayName}
                 onChange={(e) => {
                   setProfileDisplayName(e.target.value);

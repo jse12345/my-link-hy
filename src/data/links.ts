@@ -36,7 +36,7 @@ export const DUMMY_LINKS: LinkItem[] = [
   },
   {
     id: "link-3",
-    title: "정시은의 기술 공부 블로그 & 회고",
+    title: "기술 공부 블로그 & 회고",
     subtitle: "React 19, TypeScript, 디자인 시스템 학습 일지와 문제 해결기",
     url: "https://github.com/jse12345",
     category: "blog",
@@ -103,18 +103,17 @@ export function getStarterLinks(
   username?: string | null,
   email?: string | null
 ): LinkItem[] {
-  const cleanName = name || "정시은";
-  const cleanUser = (username || "sieun").toLowerCase();
-  const cleanEmail = email || "used776655@gmail.com";
+  const cleanName = name || "사용자";
+  const cleanUser = (username || "user").toLowerCase();
+  const cleanEmail = email || "";
 
-  // 정시은 계정 또는 기본 fallback일 때는 정시은 전용 데모 링크 반환
-  const isSieun =
+  // 기본 fallback일 때는 데모 링크 반환
+  const isDefault =
+    cleanUser === "user" ||
     cleanUser === "sieun" ||
-    cleanUser === "jse12345" ||
-    cleanName === "정시은" ||
-    cleanEmail.includes("used776655");
+    cleanName === "사용자";
 
-  if (isSieun) {
+  if (isDefault) {
     return DUMMY_LINKS;
   }
 

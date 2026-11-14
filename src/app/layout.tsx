@@ -3,20 +3,20 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: "정시은 | My Link - 나만의 감각적인 프로필 링크",
+  title: "My Link | 나만의 감각적인 프로필 링크",
   description: "바이브 코딩으로 제작된 Neobrutalism 스타일 감각적인 개인 프로필 링크 모음 서비스",
-  keywords: ["MyLink", "마이링크", "정시은", "바이브코딩", "링크트리", "Next.js", "포트폴리오"],
-  authors: [{ name: "정시은" }],
+  keywords: ["MyLink", "마이링크", "바이브코딩", "링크트리", "Next.js", "포트폴리오"],
+  authors: [{ name: "MyLink" }],
   openGraph: {
-    title: "정시은 | My Link - 나만의 감각적인 프로필 링크",
-    description: "안녕하세요! 바이브 코딩으로 가치 있는 서비스를 만드는 정시은입니다 ✨",
+    title: "My Link | 나만의 감각적인 프로필 링크",
+    description: "안녕하세요! 바이브 코딩으로 가치 있는 서비스를 만드는 마이링크입니다 ✨",
     type: "website",
     locale: "ko_KR",
     siteName: "MyLink HY",
   },
   twitter: {
     card: "summary_large_image",
-    title: "정시은 | My Link",
+    title: "My Link",
     description: "바이브 코딩으로 제작된 Neobrutalism 스타일 개인 프로필 링크 모음",
   },
 };

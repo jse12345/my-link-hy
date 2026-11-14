@@ -86,11 +86,11 @@ export function useAuth() {
         const wantMock = window.confirm(
           "⚠️ Firebase 콘솔에서 Authentication이 아직 활성화되지 않았습니다!\n\n" +
           "콘솔 설정 전에도 바로 화면을 확인하실 수 있도록\n" +
-          "'정시은' 테스트 계정으로 즉시 로그인하시겠습니까?\n\n" +
+          "'사용자' 테스트 계정으로 즉시 로그인하시겠습니까?\n\n" +
           "(확인: 테스트 계정으로 로그인 / 취소: 닫기)"
         );
         if (wantMock) {
-          loginWithTestUser("정시은");
+          loginWithTestUser("사용자");
           return;
         }
       } else {
@@ -102,7 +102,7 @@ export function useAuth() {
   }, []);
 
   // 3. 테스트 계정 로그인 (Firebase 콘솔 미설정 시 즉시 테스트 지원)
-  const loginWithTestUser = useCallback((name: string = "정시은") => {
+  const loginWithTestUser = useCallback((name: string = "사용자") => {
     const mockUser: AuthUser = {
       uid: "user-jse12345",
       displayName: name,

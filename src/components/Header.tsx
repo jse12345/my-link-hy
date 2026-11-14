@@ -77,7 +77,7 @@ export function Header({ user, onLogin, onLogout }: HeaderProps) {
   const displayName =
     user?.displayName ||
     (user?.email ? user.email.split("@")[0] : null) ||
-    "정시은";
+    "사용자";
 
   return (
     <header className="w-full bg-[#FEF08A] border-b-[3px] border-black px-4 py-3 sticky top-0 z-40">

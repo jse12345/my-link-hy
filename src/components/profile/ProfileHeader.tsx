@@ -21,7 +21,7 @@ export function ProfileHeader({
   username,
   socials,
 }: ProfileHeaderProps) {
-  // 사용자 이름에 따른 원형 아바타 텍스트 추출 (정시은 -> 시은, 홍길동 -> 길동, John -> JO)
+  // 사용자 이름에 따른 원형 아바타 텍스트 추출 (홍길동 -> 길동, John -> JO)
   const getAvatarText = (userName: string) => {
     if (!userName) return "시은";
     if (userName.includes("시은")) return "시은";

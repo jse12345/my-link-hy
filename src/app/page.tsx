@@ -75,11 +75,11 @@ export default function ProfilePage() {
   const [profileBio, setProfileBio] = useState("");
   const [usernameSlug, setUsernameSlug] = useState("");
 
-  const defaultName = user?.displayName || (user?.email ? user.email.split("@")[0] : "정시은");
-  const defaultUsername = user?.email ? user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "") : "sieun";
+  const defaultName = user?.displayName || (user?.email ? user.email.split("@")[0] : "사용자");
+  const defaultUsername = user?.email ? user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "") : "user";
   const defaultBio = user?.displayName
     ? `안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 ${user.displayName}입니다 ✨`
-    : "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨";
+    : "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 사용자입니다 ✨";
 
   const displayName = profileName || defaultName;
   const bio = profileBio || defaultBio;
@@ -115,8 +115,8 @@ export default function ProfilePage() {
 
     // 프로필 정보 로드 (이름, bio, username)
     if (user) {
-      const defName = user.displayName || (user.email ? user.email.split("@")[0] : "정시은");
-      const defUsername = user.email ? user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "") : "sieun";
+      const defName = user.displayName || (user.email ? user.email.split("@")[0] : "사용자");
+      const defUsername = user.email ? user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_-]/g, "") : "user";
       const defBio = `안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 ${defName}입니다 ✨`;
 
       const cachedProfile = localStorage.getItem(`my-link-profile-${user.uid}`);
@@ -148,9 +148,9 @@ export default function ProfilePage() {
         })
         .catch(() => {});
     } else {
-      setProfileName("정시은");
-      setUsernameSlug("sieun");
-      setProfileBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨");
+      setProfileName("사용자");
+      setUsernameSlug("user");
+      setProfileBio("안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 사용자입니다 ✨");
     }
 
     // 1. 로컬스토리지 캐시 우선 로드
@@ -461,11 +461,11 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between pb-3 border-b-[2px] border-black/10">
                 <div className="flex items-center gap-2.5">
                   <div className="w-11 h-11 rounded-full bg-[#DDD6FE] border-[2.5px] border-black font-black text-xs flex items-center justify-center shadow-[2px_2px_0px_#000]">
-                    시은
+                    MY
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="font-black text-sm text-black">정시은</span>
+                      <span className="font-black text-sm text-black">사용자</span>
                       <span className="text-[10px] font-black bg-black text-[#FEF08A] px-1.5 py-0.2 rounded">
                         VIBE CODER
                       </span>
