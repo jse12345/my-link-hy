@@ -24,6 +24,7 @@ import {
   serverTimestamp,
   updateDoc,
   getDoc,
+  setDoc,
   increment,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -75,6 +76,29 @@ export default function ProfilePage() {
     "안녕하세요! 바이브 코딩으로 유쾌하고 가치 있는 서비스를 만드는 정시은입니다 ✨"
   );
   const [usernameSlug, setUsernameSlug] = useState("sieun");
+
+  // 랜딩 페이지 미리보기 링크 클릭 카운트 상태
+  const [previewCounts, setPreviewCounts] = useState<{ [id: string]: number }>({
+    github: 128,
+    velog: 95,
+  });
+
+  useEffect(() => {
+    const saved = localStorage.getItem("my-link-preview-clicks");
+    if (saved) {
+      try {
+        setPreviewCounts((prev) => ({ ...prev, ...JSON.parse(saved) }));
+      } catch {}
+    }
+  }, []);
+
+  const handlePreviewClick = (key: "github" | "velog") => {
+    setPreviewCounts((prev) => {
+      const next = { ...prev, [key]: (prev[key] || 0) + 1 };
+      localStorage.setItem("my-link-preview-clicks", JSON.stringify(next));
+      return next;
+    });
+  };
 
   // 사용자 이름: Firestore 프로필명 > Google 계정명 > fallback 정시은
   const displayName = profileName || user?.displayName || "정시은";
@@ -145,12 +169,26 @@ export default function ProfilePage() {
           // 최신순 (createdAt desc) 정렬
           firestoreLinks.sort((a, b) => (b._time ?? 0) - (a._time ?? 0));
 
-          // 기본 더미 데이터와 병합 (중복 URL 방지)
+          // 기본 더미 데이터와 병합 시, 로컬에서 증가된 클릭 카운트가 있으면 우선 보존!
+          const localSaved = localStorage.getItem(cacheKey);
+          let localMap: Record<string, number> = {};
+          if (localSaved) {
+            try {
+              const parsed: LinkItem[] = JSON.parse(localSaved);
+              parsed.forEach((p) => {
+                if (typeof p.clickCount === "number") localMap[p.id] = p.clickCount;
+              });
+            } catch {}
+          }
+
           const combined = [
             ...firestoreLinks,
             ...DUMMY_LINKS.filter(
               (dummy) => !firestoreLinks.some((fl) => fl.url === dummy.url)
-            ),
+            ).map((dummy) => ({
+              ...dummy,
+              clickCount: localMap[dummy.id] !== undefined ? localMap[dummy.id] : (dummy.clickCount || 0),
+            })),
           ];
           setLinks(combined);
           localStorage.setItem(cacheKey, JSON.stringify(combined));
@@ -174,27 +212,50 @@ export default function ProfilePage() {
 
   // 3차시: 실시간 클릭 카운트 (동시성 안전 increment)
   const handleLinkClick = async (id: string) => {
-    // 1. 클릭 감지 및 로컬 즉각 반영
+    // 1. 클릭 감지 및 로컬 즉각 반영 (+1)
     const updated = links.map((l) =>
       l.id === id ? { ...l, clickCount: (l.clickCount ?? 0) + 1 } : l
     );
     saveLinks(updated);
 
-    // 2. 로그인 확인 (Image 2 명세: 로그인 확인, 실패 시 콘솔 에러)
+    // 2. 로그인 확인 및 타겟 링크 조회
     const targetUid = user?.uid;
-    if (!targetUid) {
-      console.error("클릭 카운트 저장 실패: 로그인 상태가 아닙니다.");
-      return;
-    }
+    const targetLink = links.find((l) => l.id === id);
 
-    // 3. Firestore 서버에 안전하게 clickCount increment(1) 저장
-    try {
-      await updateDoc(doc(db, "users", targetUid, "links", id), {
-        clickCount: increment(1),
-      });
-      console.log(`[클릭 카운트 +1 저장 성공] 문서: users/${targetUid}/links/${id}`);
-    } catch (err) {
-      console.error("Firestore clickCount increment(1) 에러:", err);
+    if (targetUid) {
+      try {
+        await updateDoc(doc(db, "users", targetUid, "links", id), {
+          clickCount: increment(1),
+          updatedAt: serverTimestamp(),
+        });
+        console.log(`[클릭 카운트 +1 저장 성공] 문서: users/${targetUid}/links/${id}`);
+      } catch (err: any) {
+        console.warn("updateDoc 실패(기본 더미 문서 등), setDoc으로 생성/저장 시도:", err.message);
+        if (targetLink) {
+          try {
+            await setDoc(
+              doc(db, "users", targetUid, "links", id),
+              {
+                title: targetLink.title,
+                url: targetLink.url,
+                subtitle: targetLink.subtitle || "",
+                category: targetLink.category || "project",
+                tag: targetLink.tag || "LINK",
+                bgColor: targetLink.bgColor || "bg-white",
+                clickCount: (targetLink.clickCount ?? 0) + 1,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+            console.log(`[클릭 카운트 setDoc 성공] ID: ${id}`);
+          } catch (setErr) {
+            console.error("Firestore setDoc 실패:", setErr);
+          }
+        }
+      }
+    } else {
+      console.log("비로그인 로컬 상태 클릭 카운트 증가 완료:", id);
     }
   };
 
@@ -398,20 +459,21 @@ export default function ProfilePage() {
                 </span>
               </div>
 
-              {/* 샘플 링크 카드들 (실제 클릭 가능) */}
+              {/* 샘플 링크 카드들 (실제 클릭 시 조회수 실시간 증가) */}
               <div className="space-y-2 pt-1">
                 <a
                   href="https://github.com"
                   target="_blank"
                   rel="noreferrer"
-                  className="w-full p-2.5 bg-[#FEF08A] hover:bg-[#fde047] border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs font-black transition-all group"
+                  onClick={() => handlePreviewClick("github")}
+                  className="w-full p-2.5 bg-[#FEF08A] hover:bg-[#fde047] border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs font-black transition-all group cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
                     <span>🐙</span>
                     <span>GitHub 메인 프로필</span>
                   </span>
                   <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-black group-hover:bg-black group-hover:text-white transition-colors">
-                    128회
+                    {previewCounts.github}회
                   </span>
                 </a>
 
@@ -419,14 +481,15 @@ export default function ProfilePage() {
                   href="https://velog.io"
                   target="_blank"
                   rel="noreferrer"
-                  className="w-full p-2.5 bg-[#FED7AA] hover:bg-[#fdba74] border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs font-black transition-all group"
+                  onClick={() => handlePreviewClick("velog")}
+                  className="w-full p-2.5 bg-[#FED7AA] hover:bg-[#fdba74] border-[2.5px] border-black rounded-[8px] shadow-[3px_3px_0px_#000] flex items-center justify-between text-xs font-black transition-all group cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
                     <span>🍰</span>
                     <span>기술 블로그 (Velog)</span>
                   </span>
                   <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-black group-hover:bg-black group-hover:text-white transition-colors">
-                    95회
+                    {previewCounts.velog}회
                   </span>
                 </a>
               </div>

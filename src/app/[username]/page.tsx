@@ -28,6 +28,7 @@ import {
   query,
   where,
   getDocs,
+  setDoc,
   increment,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -232,7 +233,17 @@ function UserProfileContent() {
 
   // 2. 해당 유저의 링크 목록 실시간 동기화
   useEffect(() => {
-    const targetUid = profileUid || user?.uid || "anonymous";
+    const rawTarget = profileUid || user?.uid || "anonymous";
+    const targetUid = rawTarget === "sieun-default" ? "sieun" : rawTarget;
+    const cacheKey = `my-link-user-links-${rawUsername}`;
+
+    // 1. 캐시 우선 로드
+    const saved = localStorage.getItem(cacheKey);
+    if (saved) {
+      try {
+        setLinks(JSON.parse(saved));
+      } catch {}
+    }
 
     try {
       const unsubscribe = onSnapshot(
@@ -259,13 +270,29 @@ function UserProfileContent() {
 
           firestoreLinks.sort((a, b) => (b._time ?? 0) - (a._time ?? 0));
 
+          // 로컬 클릭 수 보존
+          const localSaved = localStorage.getItem(cacheKey);
+          let localMap: Record<string, number> = {};
+          if (localSaved) {
+            try {
+              const parsed: LinkItem[] = JSON.parse(localSaved);
+              parsed.forEach((p) => {
+                if (typeof p.clickCount === "number") localMap[p.id] = p.clickCount;
+              });
+            } catch {}
+          }
+
           const combined = [
             ...firestoreLinks,
             ...DUMMY_LINKS.filter(
               (dummy) => !firestoreLinks.some((fl) => fl.url === dummy.url)
-            ),
+            ).map((dummy) => ({
+              ...dummy,
+              clickCount: localMap[dummy.id] !== undefined ? localMap[dummy.id] : (dummy.clickCount || 0),
+            })),
           ];
           setLinks(combined);
+          localStorage.setItem(cacheKey, JSON.stringify(combined));
         },
         (err) => {
           console.warn("Firestore 실시간 링크 대기:", err.message);
@@ -275,23 +302,52 @@ function UserProfileContent() {
     } catch (err) {
       console.warn("Firestore 링크 연결 실패:", err);
     }
-  }, [profileUid, user]);
+  }, [profileUid, user, rawUsername]);
 
   // 3차시: 실시간 클릭 카운트 (동시성 안전 increment)
   const handleLinkClick = async (id: string) => {
-    setLinks((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, clickCount: (l.clickCount ?? 0) + 1 } : l))
+    const cacheKey = `my-link-user-links-${rawUsername}`;
+    const updated = links.map((l) =>
+      l.id === id ? { ...l, clickCount: (l.clickCount ?? 0) + 1 } : l
     );
+    setLinks(updated);
+    localStorage.setItem(cacheKey, JSON.stringify(updated));
 
-    const targetUid = profileUid || user?.uid;
-    if (targetUid && targetUid !== "anonymous" && !targetUid.includes("default")) {
+    const rawTarget = profileUid || user?.uid;
+    const targetUid = rawTarget === "sieun-default" ? "sieun" : rawTarget;
+    const targetLink = links.find((l) => l.id === id);
+
+    if (targetUid && targetUid !== "anonymous") {
       try {
         await updateDoc(doc(db, "users", targetUid, "links", id), {
           clickCount: increment(1),
+          updatedAt: serverTimestamp(),
         });
         console.log(`[공개 페이지 클릭 카운트 +1 저장 성공] linkId: ${id}, targetUid: ${targetUid}`);
-      } catch (err) {
-        console.error("Firestore clickCount increment(1) 에러:", err);
+      } catch (err: any) {
+        console.warn("updateDoc 실패, setDoc 시도:", err.message);
+        if (targetLink) {
+          try {
+            await setDoc(
+              doc(db, "users", targetUid, "links", id),
+              {
+                title: targetLink.title,
+                url: targetLink.url,
+                subtitle: targetLink.subtitle || "",
+                category: targetLink.category || "project",
+                tag: targetLink.tag || "LINK",
+                bgColor: targetLink.bgColor || "bg-white",
+                clickCount: (targetLink.clickCount ?? 0) + 1,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+            console.log(`[공개 페이지 setDoc 저장 성공] linkId: ${id}`);
+          } catch (setErr) {
+            console.error("Firestore setDoc 실패:", setErr);
+          }
+        }
       }
     }
   };

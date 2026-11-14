@@ -28,6 +28,7 @@ import {
   TrendingUp,
   Flame,
   Trophy,
+  Eye,
 } from "lucide-react";
 
 import { collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, setDoc, getDoc, query, where, getDocs, increment } from "firebase/firestore";
@@ -284,12 +285,26 @@ export default function MyPage() {
           // 최신순 (createdAt desc) 정렬
           firestoreLinks.sort((a, b) => (b._time ?? 0) - (a._time ?? 0));
 
-          // 기본 더미 데이터와 클라우드 데이터 병합
+          // 기본 더미 데이터와 클라우드 데이터 병합 (로컬에서 증가된 클릭 카운트 보존)
+          const localSaved = localStorage.getItem(cacheKey);
+          let localMap: Record<string, number> = {};
+          if (localSaved) {
+            try {
+              const parsed: LinkItem[] = JSON.parse(localSaved);
+              parsed.forEach((p) => {
+                if (typeof p.clickCount === "number") localMap[p.id] = p.clickCount;
+              });
+            } catch {}
+          }
+
           const combined = [
             ...firestoreLinks,
             ...DUMMY_LINKS.filter(
               (dummy) => !firestoreLinks.some((fl) => fl.url === dummy.url)
-            ),
+            ).map((dummy) => ({
+              ...dummy,
+              clickCount: localMap[dummy.id] !== undefined ? localMap[dummy.id] : (dummy.clickCount || 0),
+            })),
           ];
           setLinks(combined);
           localStorage.setItem(cacheKey, JSON.stringify(combined));
@@ -572,27 +587,50 @@ export default function MyPage() {
 
   // 3차시 실습: 링크 클릭 시 서버에 클릭 카운트 저장 (동시성 안전 increment)
   const handleLinkClick = async (id: string) => {
-    // 1. 클릭 감지 및 로컬 상태 즉각 반영
+    // 1. 클릭 감지 및 로컬 상태 즉각 반영 (+1)
     const updated = links.map((l) =>
       l.id === id ? { ...l, clickCount: (l.clickCount ?? 0) + 1 } : l
     );
     saveLinks(updated);
 
-    // 2. 로그인 확인 (Image 2 명세: 로그인 확인, 실패 시 콘솔 에러)
+    // 2. 로그인 확인 및 타겟 링크 조회
     const targetUid = currentUser?.uid;
-    if (!targetUid) {
-      console.error("클릭 카운트 저장 실패: 로그인 상태가 아닙니다.");
-      return;
-    }
+    const targetLink = links.find((l) => l.id === id);
 
-    // 3. Firestore 서버에 안전하게 clickCount increment(1) 저장 (동시 클릭 손실 방지)
-    try {
-      await updateDoc(doc(db, "users", targetUid, "links", id), {
-        clickCount: increment(1),
-      });
-      console.log(`[클릭 카운트 +1 저장 성공] 문서: users/${targetUid}/links/${id}`);
-    } catch (err) {
-      console.error("Firestore clickCount increment(1) 에러:", err);
+    if (targetUid) {
+      try {
+        await updateDoc(doc(db, "users", targetUid, "links", id), {
+          clickCount: increment(1),
+          updatedAt: serverTimestamp(),
+        });
+        console.log(`[클릭 카운트 +1 저장 성공] 문서: users/${targetUid}/links/${id}`);
+      } catch (err: any) {
+        console.warn("updateDoc 실패(기본 더미 문서 등), setDoc으로 생성/저장 시도:", err.message);
+        if (targetLink) {
+          try {
+            await setDoc(
+              doc(db, "users", targetUid, "links", id),
+              {
+                title: targetLink.title,
+                url: targetLink.url,
+                subtitle: targetLink.subtitle || "",
+                category: targetLink.category || "project",
+                tag: targetLink.tag || "LINK",
+                bgColor: targetLink.bgColor || "bg-white",
+                clickCount: (targetLink.clickCount ?? 0) + 1,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+            console.log(`[마이페이지 더미 링크 setDoc 성공] ID: ${id}`);
+          } catch (setErr) {
+            console.error("Firestore setDoc 실패:", setErr);
+          }
+        }
+      }
+    } else {
+      console.log("비로그인 로컬 상태 클릭수 증가 완료:", id);
     }
   };
 
@@ -993,12 +1031,18 @@ export default function MyPage() {
                       {getLinkIcon(link)}
                     </div>
 
-                    {/* 중앙 제목 & URL */}
+                    {/* 중앙 제목 & URL & 실시간 조회수 뱃지 */}
                     <div className="flex-1 text-left px-3 overflow-hidden">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-black text-sm text-black truncate max-w-[160px]">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => handleLinkClick(link.id)}
+                          className="font-black text-sm text-black truncate max-w-[170px] hover:underline cursor-pointer"
+                        >
                           {link.title}
-                        </h3>
+                        </a>
                         {link.tag && (
                           <Badge variant="default" size="sm">
                             {link.tag}
@@ -1014,6 +1058,12 @@ export default function MyPage() {
                       >
                         {link.url}
                       </a>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-neutral-100 border border-black/30 rounded text-[10px] font-mono font-black text-neutral-800">
+                          <Eye className="w-2.5 h-2.5 text-neutral-600 stroke-[2.5]" />
+                          {(link.clickCount ?? 0).toLocaleString()}회 방문
+                        </span>
+                      </div>
                     </div>
 
                     {/* 우측 버튼: 새창 열기, 수정(✏️ 파란색), 삭제(🗑️ 빨간색) - 항상 표시 */}
