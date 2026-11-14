@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Wifi, Smartphone, Info } from "lucide-react";
+import { X, Globe, Smartphone, Info } from "lucide-react";
 import { GithubIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
@@ -9,15 +9,15 @@ interface QrModalProps {
 }
 
 export function QrModal({ isOpen, onClose }: QrModalProps) {
-  // 1: Wi-Fi 로컬 모바일 데모 (172.30.1.83:3000), 2: GitHub 저장소
-  const [selectedTarget, setSelectedTarget] = useState<"wifi" | "github">("wifi");
+  // 1: 라이브 웹 배포 링크 (누구나 접속 가능), 2: GitHub 저장소
+  const [selectedTarget, setSelectedTarget] = useState<"live" | "github">("live");
 
   if (!isOpen) return null;
 
-  const wifiUrl = "http://172.30.1.83:3000";
+  const liveUrl = "https://my-link-hy-fgy1.vercel.app";
   const githubUrl = "https://github.com";
 
-  const currentUrl = selectedTarget === "wifi" ? wifiUrl : githubUrl;
+  const currentUrl = selectedTarget === "live" ? liveUrl : githubUrl;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -38,15 +38,15 @@ export function QrModal({ isOpen, onClose }: QrModalProps) {
         <div className="grid grid-cols-2 gap-1 p-1 bg-neutral-100 border-[2px] border-black rounded-[8px] mb-3">
           <button
             type="button"
-            onClick={() => setSelectedTarget("wifi")}
+            onClick={() => setSelectedTarget("live")}
             className={`py-1.5 px-2 rounded-[6px] text-xs font-black flex items-center justify-center gap-1 transition-all cursor-pointer ${
-              selectedTarget === "wifi"
+              selectedTarget === "live"
                 ? "bg-[#FEF08A] text-black border border-black shadow-[1px_1px_0px_#000]"
                 : "text-neutral-600 hover:text-black"
             }`}
           >
-            <Wifi className="w-3.5 h-3.5" />
-            <span>Wi-Fi 데모</span>
+            <Globe className="w-3.5 h-3.5" />
+            <span>웹 링크 (전국)</span>
           </button>
           <button
             type="button"
@@ -80,16 +80,16 @@ export function QrModal({ isOpen, onClose }: QrModalProps) {
             <Smartphone className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{currentUrl}</span>
           </div>
-          {selectedTarget === "wifi" ? (
-            <p className="text-[10px] text-amber-700 flex items-start gap-1 mt-1">
-              <Info className="w-3 h-3 shrink-0 mt-0.5" />
+          {selectedTarget === "live" ? (
+            <p className="text-[10px] text-emerald-700 font-bold flex items-start gap-1 mt-1">
+              <Info className="w-3 h-3 shrink-0 mt-0.5 text-emerald-600" />
               <span>
-                PC와 스마트폰이 <strong>동일한 Wi-Fi</strong>에 연결되어 있어야 실시간 화면이 열립니다!
+                LTE/5G, 각자 집 등 <strong>어디서나 스캔해도 바로 열리는 공식 주소</strong>입니다!
               </span>
             </p>
           ) : (
             <p className="text-[10px] text-neutral-600 mt-1">
-              LTE/5G 모바일 데이터에서도 언제나 열리는 깃허브 저장소 주소입니다.
+              LTE/5G 모바일 데이터에서도 언제나 열리는 깃허브 페이지입니다.
             </p>
           )}
         </div>
