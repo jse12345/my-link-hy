@@ -815,7 +815,7 @@ export default function MyPage() {
                 <input
                   id="profile-username"
                   type="text"
-                  placeholder="예: sieun (영문 소문자, 숫자, 하이픈)"
+                  placeholder="예: user (영문 소문자, 숫자, 하이픈)"
                   value={profileUsername}
                   onChange={(e) => {
                     setProfileUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""));
@@ -830,7 +830,7 @@ export default function MyPage() {
                 </p>
               )}
               <p className="text-[11px] font-bold text-neutral-600 mt-1">
-                👉 내 고유 공개 주소: <span className="font-mono text-black font-black">http://localhost:3000/{profileUsername || "sieun"}</span>
+                👉 내 고유 공개 주소: <span className="font-mono text-black font-black">http://localhost:3000/{profileUsername || "user"}</span>
               </p>
             </div>
 
@@ -927,7 +927,7 @@ export default function MyPage() {
               </button>
 
               <Link
-                href={`/${profileUsername || "sieun"}`}
+                href={`/${profileUsername || "user"}`}
                 target="_blank"
                 className="py-3 px-3.5 bg-white hover:bg-neutral-50 text-black font-black text-xs rounded-[8px] border-[2.5px] border-black shadow-[3px_3px_0px_#000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000] flex items-center justify-center gap-1 cursor-pointer transition-all"
                 title="새 탭에서 내 공개 페이지 확인"

@@ -110,7 +110,6 @@ export function getStarterLinks(
   // 기본 fallback일 때는 데모 링크 반환
   const isDefault =
     cleanUser === "user" ||
-    cleanUser === "sieun" ||
     cleanName === "사용자";
 
   if (isDefault) {

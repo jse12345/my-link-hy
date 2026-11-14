@@ -43,11 +43,11 @@ export function Header({ user, onLogin, onLogout }: HeaderProps) {
   }, []);
 
   // 사용자 고유 URL (username 또는 displayName)
-  const [userPath, setUserPath] = useState<string>("sieun");
+  const [userPath, setUserPath] = useState<string>("user");
 
   useEffect(() => {
     if (!user) return;
-    const defaultPath = (user.displayName || user.email?.split("@")[0] || "sieun")
+    const defaultPath = (user.displayName || user.email?.split("@")[0] || "user")
       .toLowerCase()
       .replace(/[^a-z0-9_-]/g, "");
 
