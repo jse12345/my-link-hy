@@ -23,9 +23,19 @@ interface LinkCardProps {
   onDelete?: (id: string, e: React.MouseEvent) => void;
   onEdit?: (link: LinkItem, e: React.MouseEvent) => void;
   isOwner?: boolean;
+  readonly?: boolean;
 }
 
-export function LinkCard({ link, onClick, onDelete, onEdit, isOwner = false }: LinkCardProps) {
+export function LinkCard({
+  link,
+  onClick,
+  onDelete,
+  onEdit,
+  isOwner = false,
+  readonly = false,
+}: LinkCardProps) {
+  // Walkthrough 명세: readonly 모드 지원 (readonly가 true이면 편집/삭제 숨김)
+  const canModify = isOwner && !readonly;
   const getLinkIcon = () => {
     if (link.tag === "GITHUB" || link.url.includes("github.com")) {
       return <FolderGit2 className="w-5 h-5 text-black stroke-[2.5]" />;
@@ -105,9 +115,9 @@ export function LinkCard({ link, onClick, onDelete, onEdit, isOwner = false }: L
         </div>
       </div>
 
-      {/* 우측 액션: 주인(로그인)일 때만 수정/삭제 버튼 노출, 방문자에겐 깔끔한 화살표만 노출 */}
+      {/* 우측 액션: 주인(로그인)일 때만 수정/삭제 버튼 노출, 방문자/readonly일 땐 화살표만 노출 */}
       <div className="flex items-center gap-1.5 shrink-0">
-        {isOwner && (
+        {canModify && (
           <>
             <button
               type="button"

@@ -30,6 +30,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { getUserByDisplayName } from "@/lib/user";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -108,6 +109,26 @@ function UserProfileContent() {
       }
 
       try {
+        // Walkthrough 명세: user.ts의 getUserByDisplayName 활용
+        const userProf = await getUserByDisplayName(rawUsername);
+        if (userProf) {
+          if (isMounted) {
+            setUserNotFound(false);
+            setProfileUid(userProf.uid);
+            setDisplayName(userProf.displayName);
+            if (userProf.bio) setBio(userProf.bio);
+            localStorage.setItem(
+              `my-link-user-${rawUsername}`,
+              JSON.stringify({
+                displayName: userProf.displayName,
+                bio: userProf.bio,
+                uid: userProf.uid,
+              })
+            );
+          }
+          return;
+        }
+
         let foundUid: string | null = null;
         let foundName = rawUsername;
         let foundBio = "";
@@ -553,6 +574,7 @@ function UserProfileContent() {
                   onDelete={handleDeleteLink}
                   onEdit={handleStartEdit}
                   isOwner={isOwner}
+                  readonly={!isOwner}
                 />
               )
             )
