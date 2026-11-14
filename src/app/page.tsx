@@ -158,8 +158,8 @@ export default function ProfilePage() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        const hasPersonal = parsed.some((p: any) => p.url?.includes("jse12345") || p.subtitle?.includes("my-link-hy") || p.title?.includes("정시은"));
-        if (!hasPersonal) {
+        const hasOld = parsed.some((p: any) => p.url?.includes("jse12345") || p.subtitle?.includes("my-link-hy") || p.title?.includes("정시은") || p.url?.startsWith("mailto:"));
+        if (!hasOld) {
           setLinks(parsed);
         } else {
           localStorage.removeItem(cacheKey);

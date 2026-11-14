@@ -78,8 +78,8 @@ export const DUMMY_LINKS: LinkItem[] = [
   {
     id: "link-7",
     title: "커피챗 & 프로젝트 협업 문의 메일",
-    subtitle: "자유롭게 제안 및 연락주세요",
-    url: "mailto:contact@example.com",
+    subtitle: "자유롭게 제안 및 연락주세요 (웹 메일 열기)",
+    url: "https://mail.google.com/mail/?view=cm&fs=1&to=contact@example.com",
     category: "contact",
     tag: "CONTACT",
     bgColor: "bg-[#FED7AA]", // 오렌지
